@@ -61,7 +61,7 @@ inline To trim(const From &s)
 
 inline std::string_view trim_view(std::string_view s) { return trim<std::string_view, std::string_view>(s); }
 
-template <typename T>
+template <typename T = std::string>
 inline void trim_in_place(T &s)
 {
     auto j = std::find_if_not(s.rbegin(), s.rend(), is_space).base();
