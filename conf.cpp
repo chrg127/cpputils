@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <vector>
 #include <charconv>
+#include <filesystem>
 #include <fmt/core.h>
 #include "conf.hpp"
 #include "io.hpp"
@@ -243,19 +244,6 @@ std::optional<Data> parse(std::string_view text, const ValidConfig &valid,
     return data;
 }
 
-std::optional<Data> parse_or_create(std::string_view path, const ValidConfig &valid,
-                     std::function<void(std::string_view)> display_error)
-{
-    auto text = io::read_file(path);
-    if (!text) {
-        display_error(fmt::format("error: couldn't open file {}, creating new one...", path));
-        Data data(valid);
-        create(path, data, display_error);
-        return data;
-    }
-    return parse(text.value(), valid, display_error);
-}
-
 void create(std::string_view pathname, const Data &conf, std::function<void(std::string_view)> display_error)
 {
     if (conf.size() == 0) {
@@ -273,6 +261,37 @@ void create(std::string_view pathname, const Data &conf, std::function<void(std:
     std::size_t width = max->first.size();
     for (auto [k, v] : conf)
         fmt::print(file, "{:{}} = {}\n", k, width, v.to_string());
+}
+
+std::optional<Data> parse_or_create(std::string_view path, const ValidConfig &valid,
+                     std::function<void(std::string_view)> display_error)
+{
+    auto text = io::read_file(path);
+    if (!text) {
+        display_error(fmt::format("error: couldn't open file {}, creating new one...", path));
+        Data data(valid);
+        create(path, data, display_error);
+        return data;
+    }
+    return parse(text.value(), valid, display_error);
+}
+
+namespace fs = std::filesystem;
+
+std::optional<std::string> find_file(std::string_view name)
+{
+    auto home = io::user_home();
+    auto paths = std::array {
+        fs::path(fmt::format("{}/.config/{}/{}.conf", home, name, name)),
+        fs::path(fmt::format("{}/.{}/{}.conf", home, name, name)),
+        fs::path(fmt::format("./{}.conf", name))
+    };
+    for (const auto &path : paths) {
+        fmt::print("pathname = {}\n", path.string());
+        if (fs::exists(path))
+            return path.string();
+    }
+    return std::nullopt;
 }
 
 } // namespace conf

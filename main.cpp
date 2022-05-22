@@ -62,14 +62,22 @@ void test_conf()
     auto data = conf::parse(text.value(), valid_conf, [&](std::string_view msg) {
         errors += "    " + std::string(msg) + "\n";
     });
-    if (!errors.empty()) {
+    if (!errors.empty())
         fmt::print("errors on parsing conf file {}:\n{}", path, errors);
-    }
     if (!data)
         return;
     for (auto [k, v] : data.value())
         fmt::print("{} = {}\n", k, v.to_string());
     return;
+}
+
+void test_find_file(std::string_view name)
+{
+    auto res = conf::find_file(name);
+    if (res)
+        fmt::print("{}\n", res.value());
+    else
+        fmt::print("not found: {}\n", name);
 }
 
 void test_bits()
@@ -97,7 +105,8 @@ int main(int argc, char *argv[])
     // test_cmdline(argc, argv);
     // test_string();
     // test_read_file("main.cpp");
-    test_conf();
+    // test_conf();
+    test_find_file("yanesemu");
     // test_bits();
     // test_split();
     // test_trim();
