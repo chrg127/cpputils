@@ -8,6 +8,7 @@
 #include <string_view>
 #include <type_traits>
 #include <vector>
+#include "concepts.hpP"
 
 namespace str {
 
@@ -70,14 +71,13 @@ inline void trim_in_place(T &s)
     s.erase(s.begin(), i);
 }
 
-template <typename T = int, typename TStr = std::string>
+template <Number T = int, typename TStr = std::string>
 inline std::optional<T> to_num(const TStr &str, unsigned base = 10)
 {
-    static_assert(std::is_integral_v<T> || std::is_floating_point_v<T>, "T must be a number");
     auto helper = [](const char *start, const char *end, unsigned base) -> std::optional<T> {
         T value = 0;
         std::from_chars_result res;
-        if constexpr(std::is_same_v<T, float>)
+        if constexpr(std::is_floating_point_v<T>)
             res = std::from_chars(start, end, value);
         else
             res = std::from_chars(start, end, value, base);

@@ -8,6 +8,7 @@
 #include "string.hpp"
 #include "conf.hpp"
 #include "bits.hpp"
+#include "random.hpp"
 
 int test_cmdline(int argc, char *argv[])
 {
@@ -100,15 +101,28 @@ void test_trim()
     fmt::print("{}\n", res);
 }
 
+void test_random()
+{
+    fmt::print("sizeof dist = {}\n", sizeof(std::uniform_int_distribution<int>));
+    fmt::print("seed = {}\n", rng::seed);
+    for (int i = 0; i < 10; i++)         fmt::print("{} ", rng::get<int>());                 fmt::print("\n");
+    for (int i = 0; i < 10; i++)         fmt::print("{} ", rng::get<float>());               fmt::print("\n");
+    for (int i = 0; i < 25; i++)         fmt::print("{} ", rng::between(10, 20));            fmt::print("\n");
+    for (int i = 0; i < 10; i++)         fmt::print("{} ", rng::between<float>(10, 20));     fmt::print("\n");
+    for (int  i = 0; i < 10; i++)        fmt::print("{} ", rng::between<float>(0.0f, 1.0f)); fmt::print("\n");
+    for (auto x : rng::shuffle<int>(25)) fmt::print("{} ", x);                               fmt::print("\n");
+}
+
 int main(int argc, char *argv[])
 {
     // test_cmdline(argc, argv);
     // test_string();
     // test_read_file("main.cpp");
     // test_conf();
-    test_find_file("yanesemu");
+    // test_find_file("yanesemu");
     // test_bits();
     // test_split();
     // test_trim();
+    test_random();
     return 0;
 }
