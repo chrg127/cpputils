@@ -7,6 +7,7 @@
 #include <variant>
 #include <optional>
 #include <functional>
+#include <filesystem>
 
 namespace conf {
 
@@ -43,8 +44,9 @@ using ValidConfig = std::map<std::string, Value>;
 
 std::optional<Data> parse(std::string_view text, const ValidConfig &valid,
                           std::function<void(std::string_view)> display_error);
-void create(std::string_view pathname, const Data &conf, std::function<void(std::string_view)> display_error);
-std::optional<Data> parse_or_create(std::string_view path, const ValidConfig &valid,
+void create(std::filesystem::path pathname, const Data &conf,
+            std::function<void(std::string_view)> display_error);
+std::optional<Data> parse_or_create(std::filesystem::path path, const ValidConfig &valid,
                                     std::function<void(std::string_view)> display_error);
 
 std::optional<std::string> find_file(std::string_view name);

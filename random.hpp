@@ -5,7 +5,6 @@
 #include <random>
 #include <span>
 #include <vector>
-#include "concepts.hpp"
 
 namespace rng {
 
@@ -20,9 +19,8 @@ template <std::floating_point T = float> T between(T x, T y) { return std::unifo
 template <std::integral T = int>
 void shuffle_in_place(std::span<T> arr)
 {
-    for (int i = 0; i < arr.size(); i++) {
+    for (int i = 0; i < arr.size(); i++)
         std::swap(arr[i], arr[between<T>(0, arr.size() - 1)]);
-    }
 }
 
 template <std::integral T = int>

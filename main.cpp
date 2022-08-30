@@ -1,5 +1,3 @@
-// g++ main.cpp conf.cpp -std=c++20 -lfmt
-
 #include <algorithm>
 #include <cassert>
 #include <fmt/core.h>
@@ -113,16 +111,28 @@ void test_random()
     for (auto x : rng::shuffle<int>(25)) fmt::print("{} ", x);                               fmt::print("\n");
 }
 
+void test_file_get_line()
+{
+    auto f = io::File::open("test.txt", io::Access::Read);
+    if (!f) {
+        fmt::print("can't open file\n");
+        return;
+    }
+    for (std::string line; f.value().get_line(line); )
+        fmt::print("line: {}\n", line);
+}
+
 int main(int argc, char *argv[])
 {
     // test_cmdline(argc, argv);
     // test_string();
-    // test_read_file("main.cpp");
+    test_read_file("main.cpp");
     // test_conf();
     // test_find_file("yanesemu");
     // test_bits();
     // test_split();
     // test_trim();
-    test_random();
+    // test_random();
+    test_file_get_line();
     return 0;
 }

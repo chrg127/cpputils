@@ -8,6 +8,8 @@
 #include "io.hpp"
 #include "string.hpp"
 
+namespace fs = std::filesystem;
+
 namespace {
 
 std::string type_to_string(conf::Type t)
@@ -244,15 +246,15 @@ std::optional<Data> parse(std::string_view text, const ValidConfig &valid,
     return data;
 }
 
-void create(std::string_view pathname, const Data &conf, std::function<void(std::string_view)> display_error)
+void create(fs::path path, const Data &conf, std::function<void(std::string_view)> display_error)
 {
     if (conf.size() == 0) {
         display_error(fmt::format("error: no data"));
         return;
     }
-    FILE *file = fopen(pathname.data(), "wb");
+    auto file = io::File::open(path, io::Access::Write);
     if (!file) {
-        display_error(fmt::format("error: couldn't create file {}\n", pathname));
+        display_error(fmt::format("error: couldn't create file {}\n", path.c_str()));
         return;
     }
     auto max = std::max_element(conf.begin(), conf.end(), [](const auto &a, const auto &b) {
@@ -260,15 +262,15 @@ void create(std::string_view pathname, const Data &conf, std::function<void(std:
     });
     std::size_t width = max->first.size();
     for (auto [k, v] : conf)
-        fmt::print(file, "{:{}} = {}\n", k, width, v.to_string());
+        fmt::print(file.value().data(), "{:{}} = {}\n", k, width, v.to_string());
 }
 
-std::optional<Data> parse_or_create(std::string_view path, const ValidConfig &valid,
-                     std::function<void(std::string_view)> display_error)
+std::optional<Data> parse_or_create(fs::path path, const ValidConfig &valid,
+                                    std::function<void(std::string_view)> display_error)
 {
     auto text = io::read_file(path);
     if (!text) {
-        display_error(fmt::format("error: couldn't open file {}, creating new one...", path));
+        display_error(fmt::format("error: couldn't open file {}, creating new one...", path.c_str()));
         Data data(valid);
         create(path, data, display_error);
         return data;
@@ -276,18 +278,15 @@ std::optional<Data> parse_or_create(std::string_view path, const ValidConfig &va
     return parse(text.value(), valid, display_error);
 }
 
-namespace fs = std::filesystem;
-
 std::optional<std::string> find_file(std::string_view name)
 {
     auto home = io::user_home();
     auto paths = std::array {
-        fs::path(fmt::format("{}/.config/{}/{}.conf", home, name, name)),
-        fs::path(fmt::format("{}/.{}/{}.conf", home, name, name)),
-        fs::path(fmt::format("./{}.conf", name))
+        home / ".config" / name / name,
+        home / fmt::format(".{}", name) / fmt::format("{}.conf", name),
+        home / fmt::format("{}.conf", name)
     };
     for (const auto &path : paths) {
-        fmt::print("pathname = {}\n", path.string());
         if (fs::exists(path))
             return path.string();
     }
