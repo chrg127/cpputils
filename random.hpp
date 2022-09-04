@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cstddef>
-#include <algorithm>
+#include <concepts>
+#include <numeric>
 #include <random>
 #include <span>
 #include <vector>
