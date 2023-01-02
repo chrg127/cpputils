@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cassert>
+#include <thread>
 #include <fmt/core.h>
 #include "io.hpp"
 #include "cmdline.hpp"
@@ -102,37 +103,51 @@ void test_trim()
 void test_random()
 {
     fmt::print("sizeof dist = {}\n", sizeof(std::uniform_int_distribution<int>));
-    fmt::print("seed = {}\n", rng::seed);
     for (int i = 0; i < 10; i++)         fmt::print("{} ", rng::get<int>());                 fmt::print("\n");
     for (int i = 0; i < 10; i++)         fmt::print("{} ", rng::get<float>());               fmt::print("\n");
     for (int i = 0; i < 25; i++)         fmt::print("{} ", rng::between(10, 20));            fmt::print("\n");
     for (int i = 0; i < 10; i++)         fmt::print("{} ", rng::between<float>(10, 20));     fmt::print("\n");
     for (int  i = 0; i < 10; i++)        fmt::print("{} ", rng::between<float>(0.0f, 1.0f)); fmt::print("\n");
-    for (auto x : rng::shuffle<int>(25)) fmt::print("{} ", x);                               fmt::print("\n");
+    fmt::print("hello, {}\n", rng::pick({ "officer", "engineer", "office worker", "judge" }));
 }
 
 void test_file_get_line()
 {
     auto f = io::File::open("test.txt", io::Access::Read);
     if (!f) {
-        fmt::print("can't open file\n");
+        fmt::print("[{}] {}\n", f.error().value(), f.error().message());
         return;
     }
     for (std::string line; f.value().get_line(line); )
         fmt::print("line: {}\n", line);
 }
 
+void test_error_code()
+{
+    std::vector<std::thread> ts;
+    for (int i = 0; i < 2; i++) {
+        ts.push_back(std::thread([i]() {
+            auto f = io::read_file(i == 0 ? "main.cpp" : "/never_exists.txt");
+            auto err = io::detail::make_error();
+            fmt::print("msg = {}\n", err.message());
+        }));
+    }
+    for (auto &t : ts)
+        t.join();
+}
+
 int main(int argc, char *argv[])
 {
     // test_cmdline(argc, argv);
     // test_string();
-    test_read_file("main.cpp");
+    // test_read_file("main.cpp");
     // test_conf();
     // test_find_file("yanesemu");
     // test_bits();
     // test_split();
     // test_trim();
-    // test_random();
-    test_file_get_line();
+    test_random();
+    // test_file_get_line();
+    // test_error_code();
     return 0;
 }

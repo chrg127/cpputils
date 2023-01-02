@@ -6,3 +6,8 @@ files := main.cpp conf.cpp
 all: main
 
 main: $(files)
+
+.PHONY: clean
+
+clean:
+	rm main
