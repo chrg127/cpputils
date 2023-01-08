@@ -62,3 +62,16 @@ enum class Platform : uint { Windows, MacOS, Linux, Unknown };
 #endif
 
 #define FWD(x) std::forward<decltype(x)>(x)
+
+// a better assert macro
+#ifdef DEBUG
+    #if __GNUC__
+        #define ASSERT(c) if (!(c)) __builtin_trap()
+    #elif _MSC_VER
+        #define ASSERT(c) if (!(c)) __debugbreak()
+    #else
+        #define ASSERT(c) if (!(c)) *(volatile int *)0 = 0
+    #endif
+#else
+    #define ASSERT(c)
+#endif
