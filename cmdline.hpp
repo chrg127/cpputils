@@ -1,11 +1,11 @@
 #pragma once
 
-#include <cstdio>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <span>
+#include <fmt/core.h>
 
 namespace cmdline {
 
@@ -29,7 +29,7 @@ struct Result {
 inline auto find_arg(std::string_view arg, std::span<const Argument> l) { return std::find_if(l.begin(), l.end(), [&](const auto &a) { return a.long_opt  == arg; }); }
 inline auto find_arg(            char arg, std::span<const Argument> l) { return std::find_if(l.begin(), l.end(), [&](const auto &a) { return a.short_opt == arg; }); }
 
-inline Result parse(int argc, char *argv[], std::span<const Argument> valid)
+inline Result parse(int argc, char *argv[], std::span<const Argument> valid, auto &&warning)
 {
     Result res;
     while (++argv, --argc > 0) {
@@ -42,18 +42,18 @@ inline Result parse(int argc, char *argv[], std::span<const Argument> valid)
                  : curr.size() == 2 ? find_arg(curr[1], valid)
                  :                    valid.end();
         if (arg == valid.end()) {
-            fprintf(stderr, "invalid argument: %s\n", curr.data());
+            warning(fmt::format("invalid argument: %s", curr));
             continue;
         }
         if (res.has(arg->short_opt)) {
-            fprintf(stderr, "argument %s was specified multiple times\n", curr.data());
+            warning(fmt::format("argument {} was specified multiple times", curr));
             continue;
         }
         res.found.insert(arg->short_opt);
         if (arg->param_type != ParamType::None) {
             ++argv; --argc;
             if (argc == 0) {
-                fprintf(stderr, "argument %s needs a parameter (default \"%s\" will be used)\n", curr.data(), arg->default_param.data());
+                warning(fmt::format("argument {} needs a parameter (default \"{}\" will be used)", curr, arg->default_param));
                 res.params[arg->short_opt] = arg->default_param;
             } else {
                 res.params[arg->short_opt] = *argv;
@@ -63,14 +63,24 @@ inline Result parse(int argc, char *argv[], std::span<const Argument> valid)
     return res;
 }
 
-inline void print_args(std::span<const Argument> args, FILE *f = stdout)
+inline Result parse(int argc, char *argv[], std::span<const Argument> valid)
+{
+    return parse(argc, argv, valid, [](const auto &s) { fmt::print("{}\n", s); });
+}
+
+inline void print_args(std::span<const Argument> args, auto &&output)
 {
     const auto maxwidth = std::max_element(args.begin(), args.end(), [](const auto &p, const auto &q) {
         return p.long_opt.size() < q.long_opt.size();
     })->long_opt.size();
-    fprintf(f, "Valid arguments:\n");
+    output("Valid arguments:");
     for (const auto &arg : args)
-        fprintf(f, "    -%c, --%-*s    %s\n", arg.short_opt, int(maxwidth), arg.long_opt.data(), arg.desc.data());
+        output(fmt::format("    -{}, --{}    {}", arg.short_opt, arg.long_opt, arg.desc));
+}
+
+inline void print_args(std::span<const Argument> args)
+{
+    print_args(args, [](const auto &s) { fmt::print("{}\n", s); });
 }
 
 } // namespace cmdline

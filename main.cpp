@@ -8,6 +8,7 @@
 #include "conf.hpp"
 #include "bits.hpp"
 #include "random.hpp"
+#include "callcommand.hpp"
 
 int test_cmdline(int argc, char *argv[])
 {
@@ -16,10 +17,10 @@ int test_cmdline(int argc, char *argv[])
         { 'w', "width", "set width", cmdline::ParamType::Single, "1" },
     };
     if (argc < 2)
-        cmdline::print_args(args, stderr);
+        cmdline::print_args(args);
     auto result = cmdline::parse(argc, argv, args);
     if (result.has('h'))
-        cmdline::print_args(args, stderr);
+        cmdline::print_args(args);
     if (result.has('w'))
         printf("width = %s\n", result.params['w'].data());
     return 0;
@@ -28,7 +29,7 @@ int test_cmdline(int argc, char *argv[])
 int test_string(void)
 {
     std::string test = "1,2,3";
-    auto r = str::split(test);
+    auto r = string::split(test);
     for (auto sub : r)
         fmt::print("{}\n", sub);
     return 0;
@@ -88,7 +89,7 @@ void test_bits()
 void test_split()
 {
     std::string_view str = "hello world hi";
-    auto v = str::split_view(str, ' ');
+    auto v = string::split_view(str, ' ');
     for (auto word : v)
         fmt::print("{}\n", word);
 }
@@ -96,7 +97,7 @@ void test_split()
 void test_trim()
 {
     std::string_view str = "   hello   ";
-    auto res = str::trim<std::string_view, std::string_view>(str);
+    auto res = string::trim<std::string_view, std::string_view>(str);
     fmt::print("{}\n", res);
 }
 
@@ -140,6 +141,32 @@ void test_error_code()
         t.join();
 }
 
+static std::string parse_error_message(int which, std::string_view name, int num_params)
+{
+    switch (which) {
+    case 0: return fmt::format("Invalid command: {}.", name);
+    case 1: return fmt::format("Wrong number of parameters for command {} (got {})", name, num_params);
+    default: return "";
+    }
+}
+
+template <>
+int util::try_convert_impl<int>(std::string_view str)
+{
+    if (auto o = string::to_number(str); o)
+        return o.value();
+    throw ParseError(fmt::format("invalid number: {}", str));
+}
+
+void test_call_command()
+{
+    std::array<std::string, 3> args = { "1", "2", "3" };
+    util::call_command("sum", args, parse_error_message,
+        util::Command<int, int, int>{ "sum", "s", [](int a, int b, int c) { fmt::print("{}\n", a+b+c); } },
+        util::Command<int, int, int>{ "mul", "s", [](int a, int b, int c) { fmt::print("{}\n", a*b*c); } }
+    );
+}
+
 int main(int argc, char *argv[])
 {
     // test_cmdline(argc, argv);
@@ -150,8 +177,9 @@ int main(int argc, char *argv[])
     // test_bits();
     // test_split();
     // test_trim();
-    test_random();
+    // test_random();
     // test_file_get_line();
     // test_error_code();
+    test_call_command();
     return 0;
 }

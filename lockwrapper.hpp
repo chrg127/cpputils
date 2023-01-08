@@ -2,6 +2,8 @@
 
 #include <mutex>
 
+namespace util {
+
 template <
     typename T,
     typename M = std::mutex,
@@ -16,19 +18,9 @@ class MutexGuarded {
 
 public:
     MutexGuarded() = default;
-    explicit MutexGuarded(T in)
-        : elem(std::move(in))
-    { }
-
-    auto read(auto &&fn) const
-    {
-        auto l = lock();
-        return fn(elem);
-    }
-
-    auto write(auto &&fn)
-    {
-        auto l = lock();
-        return fn(elem);
-    }
+    explicit MutexGuarded(T in) : elem(std::move(in)) { }
+    auto read(auto &&fn) const { auto l = lock(); return fn(elem); }
+    auto write(auto &&fn)      { auto l = lock(); return fn(elem); }
 };
+
+} // namespace util

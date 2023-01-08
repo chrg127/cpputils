@@ -18,11 +18,21 @@ public:
     HeapArray() = default;
     explicit HeapArray(std::size_t s) { reset(s); }
 
-    T & operator[](std::size_t pos) { return ptr[pos]; }
-    T *data()                       { return ptr.get(); }
-    T *begin() const                { return ptr.get(); }
-    T *end() const                  { return ptr.get() + len; }
-    std::size_t size() const        { return len; }
+          T & operator[](std::size_t pos)       { return ptr[pos]; }
+    const T & operator[](std::size_t pos) const { return ptr[pos]; }
+
+          T *data()       noexcept { return ptr.get(); }
+    const T *data() const noexcept { return ptr.get(); }
+
+    using iterator = T *;
+
+          iterator begin()       noexcept { return ptr.get(); }
+    const iterator begin() const noexcept { return ptr.get(); }
+          iterator end()                  { return ptr.get() + len; }
+    const iterator end()   const noexcept { return ptr.get() + len; }
+
+    [[nodiscard]] bool empty() const noexcept { return len == 0; }
+    std::size_t size() const noexcept { return len; }
 
     void reset(std::size_t s)
     {

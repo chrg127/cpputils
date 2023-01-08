@@ -10,7 +10,7 @@
 #include <vector>
 #include "concepts.hpp"
 
-namespace str {
+namespace string {
 
 inline bool is_space(char c) { return c == ' ' || c == '\t' || c == '\r'; }
 inline bool is_alpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
@@ -72,7 +72,7 @@ inline void trim_in_place(T &s)
 }
 
 template <Number T = int, typename TStr = std::string>
-inline std::optional<T> to_num(const TStr &str, unsigned base = 10)
+inline std::optional<T> to_number(const TStr &str, unsigned base = 10)
 {
     auto helper = [](const char *start, const char *end, unsigned base) -> std::optional<T> {
         T value = 0;
@@ -91,4 +91,4 @@ inline std::optional<T> to_num(const TStr &str, unsigned base = 10)
         return helper(str.data(), str.data() + str.size(), base);
 }
 
-} // namespace str
+} // namespace string

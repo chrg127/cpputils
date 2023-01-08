@@ -32,7 +32,7 @@ struct Token {
     std::size_t pos;
 };
 
-bool is_ident_char(char c) { return str::is_alpha(c) || c == '_' || c == '-'; }
+bool is_ident_char(char c) { return string::is_alpha(c) || c == '_' || c == '-'; }
 
 struct Lexer {
     std::string_view text;
@@ -79,11 +79,11 @@ struct Lexer {
 
     Token number()
     {
-        while (str::is_digit(text[cur]))
+        while (string::is_digit(text[cur]))
             advance();
         if (peek() == '.') {
             advance();
-            while (str::is_digit(text[cur]))
+            while (string::is_digit(text[cur]))
                 advance();
             return make(Token::Type::Float);
         }
@@ -92,7 +92,7 @@ struct Lexer {
 
     Token ident()
     {
-        while (is_ident_char(peek()) || str::is_digit(peek()))
+        while (is_ident_char(peek()) || string::is_digit(peek()))
             advance();
         auto word = text.substr(start, cur - start);
         return make(word == "true"  ? Token::Type::True
@@ -120,7 +120,7 @@ struct Lexer {
         return c == '='    ? make(Token::Type::EqualSign)
              : c == '\n'   ? make(Token::Type::Newline)
              : c == '"'    ? string_token()
-             : str::is_digit(c) ? number()
+             : string::is_digit(c) ? number()
              : is_ident_char(c) ? ident()
              : make(Token::Type::Error, "unexpected character");
     }
@@ -187,8 +187,8 @@ struct Parser {
                     ident.text, type_to_string(type), type_to_string(r->second.type())));
         auto &pos = data[std::string(ident.text)];
         switch (type) {
-        case conf::Type::Int:    pos = conf::Value(str::to_num<  int>(t.text).value()); break;
-        case conf::Type::Float:  pos = conf::Value(str::to_num<float>(t.text).value()); break;
+        case conf::Type::Int:    pos = conf::Value(string::to_number<  int>(t.text).value()); break;
+        case conf::Type::Float:  pos = conf::Value(string::to_number<float>(t.text).value()); break;
         case conf::Type::String: pos = conf::Value(std::string(t.text.substr(1, t.text.size() - 2))); break;
         case conf::Type::Bool:   pos = conf::Value(t.type == Token::Type::True); break;
         }

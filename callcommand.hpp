@@ -1,6 +1,57 @@
 #pragma once
 
-// a library for command parsing in a gdb-style command line application
+/*
+ * A library for command parsing in a gdb-style command line application.
+ *
+ * How to use:
+ *
+ * call_command is the main function to use. First and second parameters are
+ * the command and its arguments taken from the user or from some other source.
+ * (A secondary version of call_command takes these two parameters and puts
+ * them together as the first parameter, with the name being args[0])
+ * Third parameter is a function that creates an error string. The function
+ * should have this signature:
+ *
+ * std::string parse_error_message(int which, std::string_view name, int num_params)
+ *
+ * 'which' tells us the type of error: 0 for an invalid command, 1 for a valid
+ * command with a wrong number of parameters.
+ *
+ * The next parameters are declarations of valid command. For example, if we
+ * have two commands named 'sum' and 'mul', each taking two parameters, we
+ * would declare them like so:
+ *
+ * void sum_numbers(int, int);
+ * void multiply_numbers(int, int);
+ *
+ * Command{ "sum", "s", sum_numbers }
+ * Command{ "mul", "m", multiply_numbers }
+ *
+ * Note that 's' and 'm' are abbreviations for the commands. Always make sure
+ * names and abbreviations are unique, or else the function gets confused.
+ * We can also use class methods or lambdas instead of function pointers. When
+ * using lambdas, due to weird C++ limitations, we must also declare the
+ * types the Command should get as parameters, like so:
+ *
+ * Command<int, int>{ "sum", "s", [](int a, int b) { fmt::print("{}\n", a+b); } }
+ *
+ * While trying to find a match, call_command will call a function,
+ * try_convert_impl, which will try to convert an argument to a new type.
+ * For example, the two commands above need this following definition of
+ * try_convert_impl:
+ *
+ * template <>
+ * int util::try_convert_impl<int>(std::string_view str)
+ * {
+ *     if (convert_to_int(str))
+ *         return the converted number
+ *     throw ParseError("invalid number")
+ * }
+ *
+ * Throwing a ParseError is required when the conversion fails. Note also
+ * that this library provides no definition for any type; each type you use
+ * for the Command's must also have an appropriate try_convert_impl definition.
+ */
 
 #include <functional>
 #include <string>
@@ -58,16 +109,16 @@ auto call_one(std::string_view name, std::span<std::string> args, bool &wrong_nu
 
 } // namespace detail
 
-void call_command(std::string_view name, std::span<std::string> args, auto &&invalid_fn, auto&&... commands)
+void call_command(std::string_view name, std::span<std::string> args, auto &&error_msg, auto&&... commands)
 {
     bool wrong_num_params = false;
     if (!(detail::call_one(name, args, wrong_num_params, commands) || ...))
-        throw ParseError(invalid_fn(wrong_num_params ? 1 : 0, name, args.size()));
+        throw ParseError(error_msg(wrong_num_params ? 1 : 0, name, args.size()));
 }
 
-void call_command(std::span<std::string> args, auto &&invalid_fn, auto&&... commands)
+void call_command(std::span<std::string> args, auto &&error_msg, auto&&... commands)
 {
-    call_command(args[0], args.subspan(1, args.size()-1), invalid_fn, commands...);
+    call_command(args[0], args.subspan(1, args.size()-1), error_msg, commands...);
 }
 
 } // namespace util
