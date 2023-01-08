@@ -103,6 +103,10 @@ void test_trim()
 void test_random()
 {
     fmt::print("sizeof dist = {}\n", sizeof(std::uniform_int_distribution<int>));
+    fmt::print("seed = ");
+    for (auto x : rng::seed)
+        fmt::print("{} ", x);
+    fmt::print("\n");
     for (int i = 0; i < 10; i++)         fmt::print("{} ", rng::get<int>());                 fmt::print("\n");
     for (int i = 0; i < 10; i++)         fmt::print("{} ", rng::get<float>());               fmt::print("\n");
     for (int i = 0; i < 25; i++)         fmt::print("{} ", rng::between(10, 20));            fmt::print("\n");

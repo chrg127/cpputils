@@ -2,24 +2,55 @@
 
 #include <cstddef>
 #include <concepts>
+#include <array>
+#include <bit>
 #include <numeric>
 #include <random>
 #include <span>
 #include <vector>
+#include "common.hpp"
 
 namespace rng {
 
-inline std::seed_seq make_seed()
+constexpr inline u64 xoshiro256starstar(u64 s[4]) {
+	const u64 result = std::rotl(s[1] * 5, 7) * 9;
+	const u64 t = s[1] << 17;
+	s[2] ^= s[0];
+	s[3] ^= s[1];
+	s[1] ^= s[2];
+	s[0] ^= s[3];
+	s[2] ^= t;
+	s[3] = std::rotl(s[3], 45);
+	return result;
+}
+
+struct Generator {
+    using result_type = u64;
+    static const size_t state_size = 4;
+
+private:
+    std::array<result_type, state_size> state;
+    std::array<result_type, state_size> seed;
+
+public:
+    explicit Generator(std::array<result_type, state_size> s) : seed(s), state(s) { }
+    result_type next()                 { return xoshiro256starstar(state.data()); }
+    static constexpr result_type min() { return std::numeric_limits<result_type>::min(); }
+    static constexpr result_type max() { return std::numeric_limits<result_type>::max(); }
+    result_type operator()()           { return this->next(); }
+};
+
+inline auto make_seed()
 {
     std::random_device rd;
-    std::array<std::mt19937::result_type, std::mt19937::state_size> seed;
+    std::array<Generator::result_type, Generator::state_size> seed;
     for (auto &x : seed)
         x = rd();
-    return std::seed_seq{seed.begin(), seed.end()};
+    return seed;
 }
 
 inline thread_local auto seed = make_seed();
-inline thread_local auto rng = std::mt19937(seed);
+inline thread_local auto rng  = Generator(seed);
 
 template <std::integral       T = int>   T get()             { return std::uniform_int_distribution <T>(    )(rng); }
 template <std::floating_point T = float> T get()             { return std::uniform_real_distribution<T>(    )(rng); }
