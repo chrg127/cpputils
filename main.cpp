@@ -3,7 +3,8 @@
 #include <thread>
 #include <fmt/core.h>
 #include "io.hpp"
-#include "cmdline.hpp"
+// #include "cmdline.hpp"
+#include "cmdline2.hpp"
 #include "string.hpp"
 #include "conf.hpp"
 #include "bits.hpp"
@@ -13,17 +14,27 @@
 
 int test_cmdline(int argc, char *argv[])
 {
-    const std::vector<cmdline::Argument> args = {
+    const std::vector<cmdline2::Option> args = {
         { 'h', "help", "print this help text", },
-        { 'w', "width", "set width", cmdline::ParamType::Single, "1" },
+        { 'w', "width", "set width", cmdline2::ArgType::Required, "1" },
     };
     if (argc < 2)
-        cmdline::print_args(args);
-    auto result = cmdline::parse(argc, argv, args);
-    if (result.has('h'))
-        cmdline::print_args(args);
-    if (result.has('w'))
-        printf("width = %s\n", result.params['w'].data());
+        cmdline2::print_options(args);
+    auto result = cmdline2::parse(argc, argv, args);
+    for (auto &opt : args) {
+        if (result.found(opt.longopt)) {
+            fmt::print("found {}", opt.longopt);
+            if (opt.arg != cmdline2::ArgType::None)
+                fmt::print(", arg = {}", result.args[opt.longopt]);
+            fmt::print("\n");
+        } else {
+            fmt::print("{} not found\n", opt.longopt);
+        }
+    }
+    if (result.found("help"))
+        cmdline2::print_options(args);
+    if (result.found("width"))
+        printf("width = %s\n", result.args["width"].data());
     return 0;
 }
 
@@ -190,7 +201,7 @@ void test_2dspan()
 
 int main(int argc, char *argv[])
 {
-    // test_cmdline(argc, argv);
+    test_cmdline(argc, argv);
     // test_string();
     // test_read_file("main.cpp");
     // test_conf();
@@ -202,6 +213,6 @@ int main(int argc, char *argv[])
     // test_file_get_line();
     // test_error_code();
     // test_call_command();S
-    test_2dspan();
+    // test_2dspan();
     return 0;
 }
