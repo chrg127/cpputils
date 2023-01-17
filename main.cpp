@@ -30,6 +30,7 @@ int test_cmdline(int argc, char *argv[])
     const cmdline2::Option args[] = {
         { 'h', "help", "print this help text", },
         { 'w', "width", "set width", cmdline2::ArgType::Required, "1", "WIDTH" },
+        { '\0', "reverse", "reverse stuff", },
     };
     auto r = cmdline2::parse(argc, argv, args, cmdline2::Flags::StopAtFirstNonOption);
     if (r.found("help"))

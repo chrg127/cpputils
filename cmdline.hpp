@@ -116,7 +116,7 @@ namespace detail {
 
 inline auto find_opt(            char c, std::span<const Option> os) { return std::find_if(os.begin(), os.end(), [&](const auto &o) { return o.shortopt == c; }); }
 inline auto find_opt(std::string_view s, std::span<const Option> os) { return std::find_if(os.begin(), os.end(), [&](const auto &o) { return o.longopt == s; }); }
-inline auto length_of(const Option &o) { return o.longopt.size() + o.argname.size() + 1; }
+inline auto length_of(const Option &o) { return (o.shortopt == '\0' ? 0 : 4) + o.longopt.size() + 3 + o.argname.size(); }
 
 } // namespace detail
 
@@ -226,10 +226,10 @@ inline void print_options(std::span<const Option> opts, auto &&output)
     auto width = detail::length_of(*maxopt);
     output("Valid arguments:");
     for (const auto &o : opts)
-        output(fmt::format("    -{}, --{:{}}    {}",
-                o.shortopt,
-                fmt::format("{} {}", o.longopt, o.argname), width,
-                o.desc));
+        output(fmt::format("    {:{}}    {}",
+                o.shortopt != '\0' ? fmt::format("-{}, --{} {}", o.shortopt, o.longopt, o.argname)
+                                   : fmt::format("--{} {}", o.longopt, o.argname),
+                width, o.desc));
 }
 
 /*
