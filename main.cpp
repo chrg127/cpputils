@@ -3,8 +3,7 @@
 #include <thread>
 #include <fmt/core.h>
 #include "io.hpp"
-// #include "cmdline.hpp"
-#include "cmdline2.hpp"
+#include "cmdline.hpp"
 #include "string.hpp"
 #include "conf.hpp"
 #include "bits.hpp"
@@ -33,8 +32,9 @@ int test_cmdline(int argc, char *argv[])
         { 'w', "width", "set width", cmdline2::ArgType::Required, "1", "WIDTH" },
     };
     auto r = cmdline2::parse(argc, argv, args, cmdline2::Flags::StopAtFirstNonOption);
-
-    print_cmdline_result(args, r);
+    if (r.found("help"))
+        cmdline2::print_options(args);
+    // print_cmdline_result(args, r);
 
     const cmdline2::Option subopts[] = {
         { 'h', "help", "print help for subcommand" }
@@ -42,7 +42,9 @@ int test_cmdline(int argc, char *argv[])
 
     if (r.argc > 0) {
         auto subr = cmdline2::parse(r.argc, r.argv, subopts);
-        print_cmdline_result(subopts, subr);
+        if (subr.found("help"))
+            cmdline2::print_options(subopts);
+        // print_cmdline_result(subopts, subr);
     }
 
     // if (r.found("help"))

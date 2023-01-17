@@ -41,16 +41,15 @@ namespace cmdline2 {
  * begin parsing.
  * @shortopt: what name to use when specifying the option using a single dash.
  *            Set it to '\0' for no short option.
- * @longopt: same as above, but with two dashes. To specify no long options,
- *           set it to "".
+ * @longopt: same as above, but with two dashes. This should always be specified.
  * @arg: argument type. Can be:
  *    - None: has no argument;
  *    - Required: needs an argument and won't be counted if not provided;
  *    - Optional: can have an argument, but will still be counted even if there
  *      are none;
  * @default_value: a default value for the argument if it wasn't found.
- * @arg_name: used when printing the help text. This name will be displayed after
- * the option name (for example: -f, --file FILE, where FILE is the arg_name).
+ * @argname: used when printing the help text. This name will be displayed after
+ * the option name (for example: -f, --file FILE, where FILE is the argname).
  */
 enum class ArgType { None, Required, Optional };
 
@@ -60,7 +59,7 @@ struct Option {
     std::string_view desc;
     ArgType arg = ArgType::None;
     std::string_view default_value = "";
-    std::string_view arg_name = "";
+    std::string_view argname = "";
 };
 
 /*
@@ -104,6 +103,7 @@ namespace detail {
 
 inline auto find_opt(            char c, std::span<const Option> os) { return std::find_if(os.begin(), os.end(), [&](const auto &o) { return o.shortopt == c; }); }
 inline auto find_opt(std::string_view s, std::span<const Option> os) { return std::find_if(os.begin(), os.end(), [&](const auto &o) { return o.longopt == s; }); }
+inline auto length_of(const Option &o) { return o.longopt.size() + o.argname.size() + 1; }
 
 } // namespace detail
 
@@ -200,12 +200,16 @@ inline Result parse(int argc, char *argv[], std::span<const Option> opts, Flags 
  */
 inline void print_options(std::span<const Option> opts, auto &&output)
 {
-    const auto maxwidth = std::max_element(opts.begin(), opts.end(), [](const auto &p, const auto &q) {
-        return p.longopt.size() < q.longopt.size();
-    })->longopt.size();
+    const auto maxopt = std::max_element(opts.begin(), opts.end(), [&](const auto &p, const auto &q) {
+        return detail::length_of(p) < detail::length_of(q);
+    });
+    auto width = detail::length_of(*maxopt);
     output("Valid arguments:");
     for (const auto &o : opts)
-        output(fmt::format("    -{}, --{:{}}    {}", o.shortopt, o.longopt, maxwidth, o.desc));
+        output(fmt::format("    -{}, --{:{}}    {}",
+                o.shortopt,
+                fmt::format("{} {}", o.longopt, o.argname), width,
+                o.desc));
 }
 
 /*
