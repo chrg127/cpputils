@@ -99,6 +99,19 @@ enum class Flags { None = 0x0, StopAtFirstNonOption = 0x1, };
 inline Flags operator|(Flags a, Flags b) { return static_cast<Flags>(static_cast<int>(a) | static_cast<int>(b)); }
 inline Flags operator&(Flags a, Flags b) { return static_cast<Flags>(static_cast<int>(a) & static_cast<int>(b)); }
 
+/*
+ * The parse() function can produce these four warning.
+ *     - InvalidOption means an invalid option was found;
+ *     - ArgRequired means an argument that was required was not found;
+ *     - ArgDefault warns that it will be using a default value for the
+ *       argument. It sets the optional parameter for the warning function
+ *       to the default value;
+ *     - ArgIgnored indicates that a supplied argument was ignored because
+ *       the option doesn't take any argument. Sets the optional parameter
+ *       to the ignored argument;
+ */
+enum class Warn { InvalidOption, ArgRequired, ArgDefault, ArgIgnored };
+
 namespace detail {
 
 inline auto find_opt(            char c, std::span<const Option> os) { return std::find_if(os.begin(), os.end(), [&](const auto &o) { return o.shortopt == c; }); }
@@ -114,7 +127,9 @@ inline auto length_of(const Option &o) { return o.longopt.size() + o.argname.siz
  *        objects that specifies the valid options and arguments.
  * @flags: a value that controls details about how parsing is done. The
  *         possible flags you can pass are listed above.
- * @warning: a callback function to print error messages.
+ * @warning: a callback function to print error messages. It has three
+ *           parameters: warning type, name of option, optional string.
+ *           Refer to above for information about warning.
  */
 inline Result parse(int argc, char *argv[], std::span<const Option> opts,
     Flags flags, auto &&warning)
@@ -138,7 +153,7 @@ inline Result parse(int argc, char *argv[], std::span<const Option> opts,
             for (int j = 1; j < cur.size(); j++) {
                 auto it = detail::find_opt(cur[j], opts);
                 if (it == opts.end())
-                    warning(fmt::format("{}: invalid option", cur[j]));
+                    warning(Warn::InvalidOption, cur[j], "");
                 else if (it->arg == ArgType::None)
                     r.add(it->longopt);
                 else if (j+1 != cur.size()) // argument is the rest of the string.
@@ -148,21 +163,20 @@ inline Result parse(int argc, char *argv[], std::span<const Option> opts,
                 else if (it->arg == ArgType::Optional)
                     r.add(it->longopt);
                 else if (it->default_value != "") {
-                    warning(fmt::format("{}: argument required (default {} will be used)",
-                            it->longopt, it->default_value));
+                    warning(Warn::ArgDefault, it->longopt, it->default_value);
                     r.add(it->longopt, it->default_value);
                 } else
-                    warning(fmt::format("{}: argument required", it->longopt));
+                    warning(Warn::ArgRequired, it->longopt, "");
             }
         } else {
             auto eqpos = cur.find('=', 2);  // split up by '='
             auto opt = eqpos == cur.npos ? cur.substr(2) : cur.substr(2, eqpos-2);
             auto it = detail::find_opt(opt, opts);
             if (it == opts.end())
-                warning(fmt::format("{}: invalid option", opt));
+                warning(Warn::InvalidOption, opt, "");
             else if (it->arg == ArgType::None) {
                 if (eqpos != cur.npos)
-                    warning(fmt::format("{}: argument ignored", opt));
+                    warning(Warn::ArgIgnored, opt, cur.substr(eqpos+1));
                 r.add(it->longopt);
             } else if (eqpos != cur.npos)
                 r.add(it->longopt, cur.substr(eqpos+1));
@@ -171,11 +185,10 @@ inline Result parse(int argc, char *argv[], std::span<const Option> opts,
             else if (it->arg == ArgType::Optional)
                 r.add(it->longopt);
             else if (it->default_value != "") {
-                warning(fmt::format("{}: argument required (default {} will be used)",
-                        it->longopt, it->default_value));
+                warning(Warn::ArgDefault, it->longopt, it->default_value);
                 r.add(it->longopt, it->default_value);
             } else
-                warning(fmt::format("{}: argument required", it->longopt));
+                warning(Warn::ArgRequired, it->longopt, "");
         }
     }
     r.argc = argc - i;
@@ -185,12 +198,19 @@ inline Result parse(int argc, char *argv[], std::span<const Option> opts,
 
 /*
  * An helper that only sets the warning callback to a function
- * that prints its argument to stdout. It has a default parameter for flags
+ * that prints error messages to stdout. It has a default parameter for flags
  * so that you only need to care about the list of options.
  */
 inline Result parse(int argc, char *argv[], std::span<const Option> opts, Flags f = static_cast<Flags>(0))
 {
-    return parse(argc, argv, opts, f, [](const auto &s) { fmt::print("{}\n", s); });
+    return parse(argc, argv, opts, f, [] (const auto &w, const auto &o, const auto &s) {
+        switch (w) {
+        case Warn::InvalidOption: fmt::print("{}: invalid option\n", o); break;
+        case Warn::ArgRequired:   fmt::print("{}: argument required\n", o); break;
+        case Warn::ArgDefault:    fmt::print("{}: argument required (default {} will be used)\n", o, s); break;
+        case Warn::ArgIgnored:    fmt::print("{}: argument {} ignored\n", o, s); break;
+        }
+    });
 }
 
 /*
