@@ -12,29 +12,43 @@
 #include "callcommand.hpp"
 #include "array.hpp"
 
-int test_cmdline(int argc, char *argv[])
+void print_cmdline_result(std::span<const cmdline2::Option> opts, cmdline2::Result &r)
 {
-    const std::vector<cmdline2::Option> args = {
-        { 'h', "help", "print this help text", },
-        { 'w', "width", "set width", cmdline2::ArgType::Required, "1" },
-    };
-    if (argc < 2)
-        cmdline2::print_options(args);
-    auto result = cmdline2::parse(argc, argv, args);
-    for (auto &opt : args) {
-        if (result.found(opt.longopt)) {
+    for (auto &opt : opts) {
+        if (r.found(opt.longopt)) {
             fmt::print("found {}", opt.longopt);
             if (opt.arg != cmdline2::ArgType::None)
-                fmt::print(", arg = {}", result.args[opt.longopt]);
+                fmt::print(", arg = {}", r.args[opt.longopt]);
             fmt::print("\n");
         } else {
             fmt::print("{} not found\n", opt.longopt);
         }
     }
-    if (result.found("help"))
-        cmdline2::print_options(args);
-    if (result.found("width"))
-        printf("width = %s\n", result.args["width"].data());
+}
+
+int test_cmdline(int argc, char *argv[])
+{
+    const cmdline2::Option args[] = {
+        { 'h', "help", "print this help text", },
+        { 'w', "width", "set width", cmdline2::ArgType::Required, "1", "WIDTH" },
+    };
+    auto r = cmdline2::parse(argc, argv, args, cmdline2::Flags::StopAtFirstNonOption);
+
+    print_cmdline_result(args, r);
+
+    const cmdline2::Option subopts[] = {
+        { 'h', "help", "print help for subcommand" }
+    };
+
+    if (r.argc > 0) {
+        auto subr = cmdline2::parse(r.argc, r.argv, subopts);
+        print_cmdline_result(subopts, subr);
+    }
+
+    // if (r.found("help"))
+    //     cmdline2::print_options(args);
+    // if (r.found("width"))
+    //     printf("width = %s\n", r.args["width"].data());
     return 0;
 }
 

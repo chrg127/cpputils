@@ -1,86 +1,222 @@
-#pragma once
+/*
+ * This is a library for command line parsing.
+ * It implements a parsing function, parse(), that parses arguments in
+ * accordance to most conventions:
+ *
+ *     - There are short and long options. Short options start with '-', long
+ *       options start with '--';
+ *     - Short options can be grouped, for example: -abc;
+ *     - You can pass arguments to options. The argument follows the option;
+ *     - For short options, the argument can appear as the next argument or
+ *       packed together (-i input.txt or -iinput.txt);
+ *     - For long options, the argument can appear as the next argument or
+ *       after a '=' (--input input.txt or --input=input.txt)
+ *     - Optional argument options exists: these can be specified with or
+ *       without an argument;
+ *     - It's possible to use '--' to control where options end (anything after
+ *       -- is treated as a non-option.
+ *
+ * It's worth noting however, that any invalid option is simply ignored.
+ *
+ * The library also implements a function, print_options that formats a help
+ * text.
+ *
+ * Refer to the comments below for how to use the library.
+ */
 
+#ifndef CMDLINE_HPP_INCLUDED
+#define CMDLINE_HPP_INCLUDED
+
+#include <cstdio>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
-#include <vector>
-#include <span>
 #include <fmt/core.h>
 
-namespace cmdline {
+namespace cmdline2 {
 
-enum class ParamType { None, Single };
+/*
+ * This struct defines a valid option. The user must define a list of these to
+ * begin parsing.
+ * @shortopt: what name to use when specifying the option using a single dash.
+ *            Set it to '\0' for no short option.
+ * @longopt: same as above, but with two dashes. To specify no long options,
+ *           set it to "".
+ * @arg: argument type. Can be:
+ *    - None: has no argument;
+ *    - Required: needs an argument and won't be counted if not provided;
+ *    - Optional: can have an argument, but will still be counted even if there
+ *      are none;
+ * @default_value: a default value for the argument if it wasn't found.
+ * @arg_name: used when printing the help text. This name will be displayed after
+ * the option name (for example: -f, --file FILE, where FILE is the arg_name).
+ */
+enum class ArgType { None, Required, Optional };
 
-struct Argument {
-    char short_opt;
-    std::string_view long_opt;
+struct Option {
+    char shortopt;
+    std::string_view longopt;
     std::string_view desc;
-    ParamType param_type = ParamType::None;
-    std::string_view default_param = "";
+    ArgType arg = ArgType::None;
+    std::string_view default_value = "";
+    std::string_view arg_name = "";
 };
 
+/*
+ * This is returned as the result of parsing.
+ * @opts: A set containing the valid options found. It is recommended to use
+ *        the found() method for testing whether an option was found.
+ * @args: If an option was found, its long name is mapped to an argument
+ *        in this map (provided it specified an argument, of course).
+ * @non_opts: Any non-options found, in order of how they are found
+ *            in the argument list.
+ * @argc and @argv: these are set at the end of parsing to tell where
+ *                  the parser stopped. Without any flag, these will always
+ *                  be 0 and one past the end of argv; with the flag
+ *                  StopAtFirstNonOption, it is possible to use these to
+ *                  implement subcommands.
+ */
 struct Result {
-    std::unordered_set<char> found;
-    std::unordered_map<char, std::string_view> params;
-    std::vector<std::string_view> items;
-    bool has(char flag) const { return found.find(flag) != found.end(); }
+    std::unordered_set<std::string_view> opts;
+    std::unordered_map<std::string_view, std::string_view> args;
+    std::vector<std::string_view> non_opts;
+    int argc; char **argv; // used in conjunction with the flag above
+    bool found(std::string_view s) const { return opts.find(s) != opts.end(); }
+    void add(std::string_view o) { opts.insert(o); }
+    void add(std::string_view o, std::string_view a) { opts.insert(o); args[o] = a; }
 };
 
-inline auto find_arg(std::string_view arg, std::span<const Argument> l) { return std::find_if(l.begin(), l.end(), [&](const auto &a) { return a.long_opt  == arg; }); }
-inline auto find_arg(            char arg, std::span<const Argument> l) { return std::find_if(l.begin(), l.end(), [&](const auto &a) { return a.short_opt == arg; }); }
+/*
+ * These flags are used for parsing. You can specify them to control how
+ * parsing is done.
+ *     - StopAtFirstNonOption: stops parsing when encountering the first
+ *       non-option. This flag can be used both for no mixing of options and
+ *       non.
+ *       The parse() function also keeps track of the remaining arguments before
+ *       exiting, so this flag can be used for implementing subcommands.
+ */
+enum class Flags { None = 0x0, StopAtFirstNonOption = 0x1, };
+inline Flags operator|(Flags a, Flags b) { return static_cast<Flags>(static_cast<int>(a) | static_cast<int>(b)); }
+inline Flags operator&(Flags a, Flags b) { return static_cast<Flags>(static_cast<int>(a) & static_cast<int>(b)); }
 
-inline Result parse(int argc, char *argv[], std::span<const Argument> valid, auto &&warning)
+namespace detail {
+
+inline auto find_opt(            char c, std::span<const Option> os) { return std::find_if(os.begin(), os.end(), [&](const auto &o) { return o.shortopt == c; }); }
+inline auto find_opt(std::string_view s, std::span<const Option> os) { return std::find_if(os.begin(), os.end(), [&](const auto &o) { return o.longopt == s; }); }
+
+} // namespace detail
+
+/*
+ * The main parsing function.  * It takes as parameters:
+ * @argc and @argv: no explanation needed.
+ * @opts: A collection (can be whatever you want, even a C array) of Option
+ *        objects that specifies the valid options and arguments.
+ * @flags: a value that controls details about how parsing is done. The
+ *         possible flags you can pass are listed above.
+ * @warning: a callback function to print error messages.
+ */
+inline Result parse(int argc, char *argv[], std::span<const Option> opts,
+    Flags flags, auto &&warning)
 {
-    Result res;
-    while (++argv, --argc > 0) {
-        std::string_view curr = *argv;
-        if (curr[0] != '-' || (curr[0] == '-' && curr.size() == 1)) {
-            res.items.push_back(curr);
-            continue;
-        }
-        auto arg = curr[1] == '-'   ? find_arg(curr.substr(2), valid)
-                 : curr.size() == 2 ? find_arg(curr[1], valid)
-                 :                    valid.end();
-        if (arg == valid.end()) {
-            warning(fmt::format("invalid argument: {}", curr));
-            continue;
-        }
-        if (res.has(arg->short_opt)) {
-            warning(fmt::format("argument {} was specified multiple times", curr));
-            continue;
-        }
-        res.found.insert(arg->short_opt);
-        if (arg->param_type != ParamType::None) {
-            ++argv; --argc;
-            if (argc == 0) {
-                warning(fmt::format("argument {} needs a parameter (default \"{}\" will be used)", curr, arg->default_param));
-                res.params[arg->short_opt] = arg->default_param;
-            } else {
-                res.params[arg->short_opt] = *argv;
+    Result r;
+    int i = 1;
+    for ( ; i < argc; i++) {
+        auto cur = std::string_view(argv[i]);
+        if (cur == "--")    // this tells us all next args are non-options
+            if ((flags & Flags::StopAtFirstNonOption) != Flags::None)
+                break;
+            else
+                for ( ; i < argc; i++)
+                    r.non_opts.push_back(cur);
+        else if (cur[0] != '-')
+            if ((flags & Flags::StopAtFirstNonOption) != Flags::None)
+                break;
+            else
+                r.non_opts.push_back(cur);
+        else if (cur[1] != '-') {
+            for (int j = 1; j < cur.size(); j++) {
+                auto it = detail::find_opt(cur[j], opts);
+                if (it == opts.end())
+                    warning(fmt::format("{}: invalid option", cur[j]));
+                else if (it->arg == ArgType::None)
+                    r.add(it->longopt);
+                else if (j+1 != cur.size()) // argument is the rest of the string.
+                    r.add(it->longopt, cur.substr(++j));
+                else if (i+1 != argc)       // argument is next in argv
+                    r.add(it->longopt, argv[++i]);
+                else if (it->arg == ArgType::Optional)
+                    r.add(it->longopt);
+                else if (it->default_value != "") {
+                    warning(fmt::format("{}: argument required (default {} will be used)",
+                            it->longopt, it->default_value));
+                    r.add(it->longopt, it->default_value);
+                } else
+                    warning(fmt::format("{}: argument required", it->longopt));
             }
+        } else {
+            auto eqpos = cur.find('=', 2);  // split up by '='
+            auto opt = eqpos == cur.npos ? cur.substr(2) : cur.substr(2, eqpos-2);
+            auto it = detail::find_opt(opt, opts);
+            if (it == opts.end())
+                warning(fmt::format("{}: invalid option", opt));
+            else if (it->arg == ArgType::None) {
+                if (eqpos != cur.npos)
+                    warning(fmt::format("{}: argument ignored", opt));
+                r.add(it->longopt);
+            } else if (eqpos != cur.npos)
+                r.add(it->longopt, cur.substr(eqpos+1));
+            else if (i+1 != argc)
+                r.add(it->longopt, argv[++i]);
+            else if (it->arg == ArgType::Optional)
+                r.add(it->longopt);
+            else if (it->default_value != "") {
+                warning(fmt::format("{}: argument required (default {} will be used)",
+                        it->longopt, it->default_value));
+                r.add(it->longopt, it->default_value);
+            } else
+                warning(fmt::format("{}: argument required", it->longopt));
         }
     }
-    return res;
+    r.argc = argc - i;
+    r.argv = &argv[i];
+    return r;
 }
 
-inline Result parse(int argc, char *argv[], std::span<const Argument> valid)
+/*
+ * An helper that only sets the warning callback to a function
+ * that prints its argument to stdout. It has a default parameter for flags
+ * so that you only need to care about the list of options.
+ */
+inline Result parse(int argc, char *argv[], std::span<const Option> opts, Flags f = static_cast<Flags>(0))
 {
-    return parse(argc, argv, valid, [](const auto &s) { fmt::print("{}\n", s); });
+    return parse(argc, argv, opts, f, [](const auto &s) { fmt::print("{}\n", s); });
 }
 
-inline void print_args(std::span<const Argument> args, auto &&output)
+/*
+ * Prints a help text.
+ * @opts: a list of Option objects. Same as parse().
+ * @output: a callback function to where should the messages be printed.
+ */
+inline void print_options(std::span<const Option> opts, auto &&output)
 {
-    const auto maxwidth = std::max_element(args.begin(), args.end(), [](const auto &p, const auto &q) {
-        return p.long_opt.size() < q.long_opt.size();
-    })->long_opt.size();
+    const auto maxwidth = std::max_element(opts.begin(), opts.end(), [](const auto &p, const auto &q) {
+        return p.longopt.size() < q.longopt.size();
+    })->longopt.size();
     output("Valid arguments:");
-    for (const auto &arg : args)
-        output(fmt::format("    -{}, --{:{}}    {}", arg.short_opt, arg.long_opt, maxwidth, arg.desc));
+    for (const auto &o : opts)
+        output(fmt::format("    -{}, --{:{}}    {}", o.shortopt, o.longopt, maxwidth, o.desc));
 }
 
-inline void print_args(std::span<const Argument> args)
+/*
+ * A helper for print_options that sets the output callback to a function
+ * that only prints to stdout.
+ */
+inline void print_options(std::span<const Option> opts)
 {
-    print_args(args, [](const auto &s) { fmt::print("{}\n", s); });
+    print_options(opts, [](const auto &s) { fmt::print("{}\n", s); });
 }
 
 } // namespace cmdline
+
+#endif
