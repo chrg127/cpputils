@@ -33,6 +33,9 @@ int test_cmdline(int argc, char *argv[])
         { '\0', "reverse", "reverse stuff", },
     };
     auto r = cmdline2::parse(argc, argv, args, cmdline2::Flags::StopAtFirstNonOption);
+    if (r.got_error)
+        return 1;
+
     if (r.found("help"))
         cmdline2::print_options(args);
     // print_cmdline_result(args, r);
