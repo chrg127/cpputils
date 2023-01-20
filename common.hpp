@@ -21,32 +21,32 @@ enum class Compiler : uint { Clang, GCC, MSVC, Unknown };
 enum class Platform : uint { Windows, MacOS, Linux, Unknown };
 
 #ifdef __clang__
-#   define COMPILER_CLANG
-    static inline constexpr Compiler compiler() { return Compiler::Clang; }
+    #define COMPILER_CLANG
+    static constexpr inline Compiler compiler() { return Compiler::Clang; }
 #elif defined(__GNUC__)
-#   define COMPILER_GCC
-    static inline constexpr Compiler compiler() { return Compiler::GCC; }
+    #define COMPILER_GCC
+    static constexpr inline Compiler compiler() { return Compiler::GCC; }
 #elif defined(_MSC_VER)
-#   define COMPILER_MICROSOFT
-    static inline constexpr Compiler compiler() { return Compiler::MSVC; }
+    #define COMPILER_MICROSOFT
+    static constexpr inline Compiler compiler() { return Compiler::MSVC; }
 #else
-#   warning "unable to detect compiler"
-#   define COMPILER_UNKNOWN
-    static inline constexpr Compiler compiler() { return Compiler::Unknown; }
+    #warning "unable to detect compiler"
+    #define COMPILER_UNKNOWN
+    static constexpr inline Compiler compiler() { return Compiler::Unknown; }
 #endif
 
 #ifdef _WIN32
-#   define PLATFORM_WINDOWS
+    #define PLATFORM_WINDOWS
     static inline constexpr Platform platform() { return Platform::Windows; }
 #elif defined(__APPLE__)
-#   define PLATFORM_MACOS
+    #define PLATFORM_MACOS
     static inline constexpr Platform platform() { return Platform::MacOS; }
 #elif defined(linux) || defined(__linux__)
-#   define PLATFORM_LINUX
+    #define PLATFORM_LINUX
     static inline constexpr Platform platform() { return Platform::Linux; }
 #else
-#   define PLATFORM_UNKNOWN
-#   warning "unable to detect platform"
+    #define PLATFORM_UNKNOWN
+    #warning "unable to detect platform"
     static inline constexpr Platform platform() { return Platform::Unknown; }
 #endif
 
@@ -63,7 +63,7 @@ enum class Platform : uint { Windows, MacOS, Linux, Unknown };
 
 #define FWD(x) std::forward<decltype(x)>(x)
 
-// a better assert macro
+// A better assert macro. Should trigger a quick break on any debugger.
 #ifdef DEBUG
     #if __GNUC__
         #define ASSERT(c) if (!(c)) __builtin_trap()

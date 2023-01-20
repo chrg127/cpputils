@@ -1,3 +1,5 @@
+// TODO: write some documentation
+
 #pragma once
 
 #include <cstdio>

@@ -34,7 +34,7 @@
 #include <unordered_set>
 #include <fmt/core.h>
 
-namespace cmdline2 {
+namespace cmdline {
 
 /*
  * This struct defines a valid option. The user must define a list of these to

@@ -1,3 +1,24 @@
+/*
+ * The missing string function from the standard library.
+ *
+ * This library implements the following functions:
+ *
+ *     - split(): you know this one. Uses a single character delimiter and
+ *       returns an std::vector.
+ *     - split_lines(): splits a single string in multiple lines, using a
+ *       number that describes the maximum column of each line. It tries
+ *       doing the operation using words;
+ *     - trim(): you also know this one;
+ *     - trim_in_place(): same as above, but in place;
+ *     - to_number(): converts a string to number, returns an std::optional
+ *       instead of usig clunky error handling mechanisms;
+ *
+ * All these functions work on both std::string and std::string_view (and
+ * probably other string types too). Some of these (split(), trim()) have a
+ * version for std::string_view (split_view(), trim_view()) as helpers
+ * (otherwise you'd have to specify those in template parameters.
+ */
+
 #pragma once
 
 #include <algorithm>

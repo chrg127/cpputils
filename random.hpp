@@ -1,3 +1,9 @@
+/*
+ * This is a small random library. It offers a thread-safe generator portable
+ * to any platform (I.E. generates the same sequences everywhere). It also
+ * offers some helpful functions.
+ */
+
 #pragma once
 
 #include <cstddef>
@@ -12,6 +18,7 @@
 
 namespace rng {
 
+// https://prng.di.unimi.it
 constexpr inline u64 xoshiro256starstar(u64 s[4]) {
 	const u64 result = std::rotl(s[1] * 5, 7) * 9;
 	const u64 t = s[1] << 17;
@@ -49,14 +56,23 @@ inline auto make_seed()
     return seed;
 }
 
-inline thread_local auto seed = make_seed();
+/*
+ * @seed: the seed generated at program/thread start-up. Note this is actually
+ *        an array, not a single value. A seed value is generated for every
+ *        thread.
+ * @rng: the actual generator. The generator itself is based on standard
+ *       <random> generators. A copy of the generator exists for every thread.
+ */
+inline thread_local const auto seed = make_seed();
 inline thread_local auto rng  = Generator(seed);
 
+/* Helpful function for extracting values from the generator. */
 template <std::integral       T = int>   T get()             { return std::uniform_int_distribution <T>(    )(rng); }
 template <std::floating_point T = float> T get()             { return std::uniform_real_distribution<T>(    )(rng); }
 template <std::integral       T = int>   T between(T x, T y) { return std::uniform_int_distribution <T>(x, y)(rng); }
 template <std::floating_point T = float> T between(T x, T y) { return std::uniform_real_distribution<T>(x, y)(rng); }
 
+/* Randomly picks an element from a list of elements. */
 template <typename T> T pick(std::span<T> from)                    { return from        [between(0ul, from.size()-1)]; }
 template <typename T> T pick(const std::initializer_list<T> &from) { return from.begin()[between(0ul, from.size()-1)]; }
 

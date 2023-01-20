@@ -5,19 +5,16 @@
 
 namespace bits {
 
-// Returns a mask usable to mask off a given number of bits.
-// For example: 3 -> 0b11; 6 -> 0b111111
-constexpr inline u64 bitmask(u8 nbits)
-{
-    return (1UL << nbits) - 1UL;
-}
+/* Returns a mask usable to mask off a given number of bits.
+ * For example: 3 -> 0b11; 6 -> 0b111111 */
+constexpr inline u64 bitmask(u8 nbits) { return (1UL << nbits) - 1UL; }
 
 constexpr inline u64 getbits(u64 num, u8 bitno, u8 nbits)
 {
     return num >> bitno & bitmask(nbits);
 }
 
-constexpr inline u64 getbit(u64 num, u8 bitno)
+constexpr inline u64 getbit( u64 num, u8 bitno)
 {
     return num >> bitno & 1;
 }
@@ -33,6 +30,7 @@ constexpr inline u64 setbit(u64 num, u8 bitno, u8 data)
     return (num & ~(1 << bitno)) | (data & 1) << bitno;
 }
 
+/* Reverse the bits of a number. */
 constexpr inline u8 reverse(u8 n)
 {
     n = (n & 0xF0) >> 4 |  (n & 0x0F) << 4;
@@ -42,25 +40,26 @@ constexpr inline u8 reverse(u8 n)
 }
 
 /*
- * A struct for portable bit-fields. Use it like so:
+ * A portable bit-field type. To be used in unions, when you want to access
+ * both a whole number and parts of it. For example:
+ *
  * union {
  *     u16 full
  *     BitField<u16, 1, 1> flag;
  *     BitField<u16, 2, 3> flag_3bits;
- *     // ...
  * } data;
- * the types must necessarily be the same or else it won't work at all.
+ *
+ * The types must necessarily be the same in order to work.
  */
 template <std::integral T, unsigned Bitno, unsigned Nbits = 1>
-struct BitField {
+class BitField {
     T data;
-
+public:
     BitField() = default;
-    BitField(const BitField<T, Bitno, Nbits> &b)               { operator=(b); }
-    BitField & operator=(const BitField<T, Bitno, Nbits> &oth) { data = setbits(data, Bitno, Nbits, u64(oth)); return *this; }
-    BitField & operator=(const u64 val)                   { data = setbits(data, Bitno, Nbits, val);           return *this; }
-    operator u64() const                                  { return (data >> Bitno) & bitmask(Nbits); }
-
+    BitField(const BitField<T, Bitno, Nbits> &b)              { operator=(b); }
+    BitField & operator=(const BitField<T, Bitno, Nbits> &b)  { data = setbits(data, Bitno, Nbits, u64(b)); return *this; }
+    BitField & operator=(const u64 val)                       { data = setbits(data, Bitno, Nbits, val);    return *this; }
+    operator u64() const                                      { return (data >> Bitno) & bitmask(Nbits); }
     template <typename U> BitField & operator+= (const U val) { *this = *this +  val; return *this; }
     template <typename U> BitField & operator-= (const U val) { *this = *this -  val; return *this; }
     template <typename U> BitField & operator*= (const U val) { *this = *this *  val; return *this; }
@@ -70,19 +69,19 @@ struct BitField {
     template <typename U> BitField & operator^= (const U val) { *this = *this ^  val; return *this; }
     template <typename U> BitField & operator>>=(const U val) { *this = *this >> val; return *this; }
     template <typename U> BitField & operator<<=(const U val) { *this = *this << val; return *this; }
-
-    BitField & operator++() { return *this = *this + 1; }
-    BitField & operator--() { return *this = *this - 1; }
-
-    constexpr unsigned bitno() const { return Bitno; }
+                          BitField & operator++()             { return *this = *this + 1; }
+                          BitField & operator--()             { return *this = *this - 1; }
+    constexpr unsigned bitno() const                          { return Bitno; }
     constexpr unsigned nbits() const { return Nbits; }
 };
 
-// A 16 number that can be accessed either through its full value and through its low and high byte.
+/*
+ * A 16 bit number that can be accessed either through its full value and
+ * through its low and high byte.
+ */
 union Word {
     u16 v;
     struct { u8 l, h; };
-
     Word() = default;
     explicit Word(u16 val) : v(val) {}
     Word & operator= (u16 val) { v  = val; return *this; }
