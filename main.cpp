@@ -11,12 +11,12 @@
 #include "callcommand.hpp"
 #include "array.hpp"
 
-void print_cmdline_result(std::span<const cmdline2::Option> opts, cmdline2::Result &r)
+void print_cmdline_result(std::span<const cmdline::Option> opts, cmdline::Result &r)
 {
     for (auto &opt : opts) {
         if (r.found(opt.longopt)) {
             fmt::print("found {}", opt.longopt);
-            if (opt.arg != cmdline2::ArgType::None)
+            if (opt.arg != cmdline::ArgType::None)
                 fmt::print(", arg = {}", r.args[opt.longopt]);
             fmt::print("\n");
         } else {
@@ -27,34 +27,34 @@ void print_cmdline_result(std::span<const cmdline2::Option> opts, cmdline2::Resu
 
 int test_cmdline(int argc, char *argv[])
 {
-    const cmdline2::Option args[] = {
+    const cmdline::Option args[] = {
         { 'h', "help", "print this help text", },
-        { 'w', "width", "set width", cmdline2::ArgType::Required, "1", "WIDTH" },
+        { 'w', "width", "set width", cmdline::ArgType::Required, "1", "WIDTH" },
         { '\0', "reverse", "reverse stuff", },
     };
-    auto r = cmdline2::parse(argc, argv, args, cmdline2::Flags::StopAtFirstNonOption);
-    if (r.got_error)
+    auto r = cmdline::parse(argc, argv, args, cmdline::Flags::StopAtFirstNonOption);
+    if (r.got_error) {
+        cmdline::print_options(args);
         return 1;
+    }
+    print_cmdline_result(args, r);
+    if (r.found("help")) {
+        cmdline::print_options(args);
+        return 0;
+    }
+    if (r.found("width"))
+        printf("width = %s\n", r.args["width"].data());
 
-    if (r.found("help"))
-        cmdline2::print_options(args);
-    // print_cmdline_result(args, r);
-
-    const cmdline2::Option subopts[] = {
+    const cmdline::Option subopts[] = {
         { 'h', "help", "print help for subcommand" }
     };
 
     if (r.argc > 0) {
-        auto subr = cmdline2::parse(r.argc, r.argv, subopts);
+        auto subr = cmdline::parse(r.argc, r.argv, subopts);
         if (subr.found("help"))
-            cmdline2::print_options(subopts);
-        // print_cmdline_result(subopts, subr);
+            cmdline::print_options(subopts);
+        print_cmdline_result(subopts, subr);
     }
-
-    // if (r.found("help"))
-    //     cmdline2::print_options(args);
-    // if (r.found("width"))
-    //     printf("width = %s\n", r.args["width"].data());
     return 0;
 }
 
@@ -108,7 +108,7 @@ void test_find_file(std::string_view name)
 {
     auto res = conf::find_file(name);
     if (res)
-        fmt::print("{}\n", res.value());
+        fmt::print("{}\n", res.value().string());
     else
         fmt::print("not found: {}\n", name);
 }
@@ -219,9 +219,19 @@ void test_2dspan()
     print(sub2);
 }
 
+void test_arrays(int x)
+{
+    void f(const util::HeapArray<int> &a);
+    auto a = util::HeapArray<int>(x);
+    for (int i = 0; i < x; i++)
+        a[i] = i*i;
+    for (auto elem : a)
+        fmt::print("{}\n", elem);
+}
+
 int main(int argc, char *argv[])
 {
-    test_cmdline(argc, argv);
+    // test_cmdline(argc, argv);
     // test_string();
     // test_read_file("main.cpp");
     // test_conf();
@@ -234,5 +244,6 @@ int main(int argc, char *argv[])
     // test_error_code();
     // test_call_command();S
     // test_2dspan();
+    // test_arrays(150);
     return 0;
 }
