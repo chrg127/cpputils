@@ -278,7 +278,7 @@ std::optional<Data> parse_or_create(fs::path path, const ValidConfig &valid,
     return parse(text.value(), valid, display_error);
 }
 
-std::optional<std::string> find_file(std::string_view name)
+std::optional<fs::path> find_file(std::string_view name)
 {
     auto home = io::user_home();
     auto paths = std::array {
@@ -288,7 +288,7 @@ std::optional<std::string> find_file(std::string_view name)
     };
     for (const auto &path : paths) {
         if (fs::exists(path))
-            return path.string();
+            return path;
     }
     return std::nullopt;
 }
