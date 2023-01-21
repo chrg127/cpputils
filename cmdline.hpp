@@ -83,9 +83,10 @@ struct Result {
     std::vector<std::string_view> non_opts;
     int argc; char **argv;
     bool got_error = false;
-    bool found(std::string_view s) const { return opts.find(s) != opts.end(); }
-    void add(std::string_view o) { opts.insert(o); }
+    bool found(std::string_view s) const             { return opts.find(s) != opts.end(); }
+    void add(std::string_view o)                     { opts.insert(o); }
     void add(std::string_view o, std::string_view a) { opts.insert(o); args[o] = a; }
+    Result &update_argcv(int i, int c, char **v)     { argc = c - i; argv = &v[i]; return *this; }
 };
 
 /*
@@ -95,8 +96,17 @@ struct Result {
  *       non-option. This flag can be used both for no mixing of options and
  *       non. The parse() function also keeps track of the remaining arguments
  *       before exiting, so this flag can be used for implementing subcommands.
+ *     - StopAtFirstError: stops parsing on the first error encountered, rather
+ *       than ignoring errors. The result's argc and argv are set to where the
+ *       parser found an error. got_error indicates whether an error occurred,
+ *       as usual.
  */
-enum class Flags { None = 0x0, StopAtFirstNonOption = 0x1, };
+enum class Flags {
+    None = 0x0,
+    StopAtFirstNonOption = 0x1,
+    StopAtFirstError = 0x2,
+};
+
 inline Flags operator|(Flags a, Flags b) { return static_cast<Flags>(static_cast<int>(a) | static_cast<int>(b)); }
 inline Flags operator&(Flags a, Flags b) { return static_cast<Flags>(static_cast<int>(a) & static_cast<int>(b)); }
 
@@ -142,7 +152,8 @@ inline void default_printer(Warn w, std::string_view o, std::string_view s)
  *           parameters: warning type, name of option, optional string.
  *           Refer to above for information about warning.
  */
-inline Result parse(int argc, char *argv[], std::span<const Option> opts, Flags flags, auto &&warning)
+inline Result parse(int argc, char *argv[], std::span<const Option> opts,
+    Flags flags, auto &&warning)
 {
     Result r;
     int i = 1;
@@ -165,6 +176,8 @@ inline Result parse(int argc, char *argv[], std::span<const Option> opts, Flags 
                 if (it == opts.end()) {
                     warning(Warn::InvalidOption, cur.substr(j, 1), "");
                     r.got_error = true;
+                    if ((flags & Flags::StopAtFirstError) != Flags::None)
+                        return r.update_argcv(i, argc, argv);
                 } else if (it->arg == ArgType::None)
                     r.add(it->longopt);
                 else if (j+1 != cur.size()) // argument is rest of the string.
@@ -179,6 +192,8 @@ inline Result parse(int argc, char *argv[], std::span<const Option> opts, Flags 
                 } else {
                     warning(Warn::ArgRequired, it->longopt, "");
                     r.got_error = true;
+                    if ((flags & Flags::StopAtFirstError) != Flags::None)
+                        return r.update_argcv(i, argc, argv);
                 }
             }
         } else {                    // long option
@@ -189,6 +204,8 @@ inline Result parse(int argc, char *argv[], std::span<const Option> opts, Flags 
             if (it == opts.end()) {
                 warning(Warn::InvalidOption, opt, "");
                 r.got_error = true;
+                if ((flags & Flags::StopAtFirstError) != Flags::None)
+                    return r.update_argcv(i, argc, argv);
             } else if (it->arg == ArgType::None) {
                 if (eqpos != cur.npos)
                     warning(Warn::ArgIgnored, opt, cur.substr(eqpos+1));
@@ -205,12 +222,12 @@ inline Result parse(int argc, char *argv[], std::span<const Option> opts, Flags 
             } else {
                 warning(Warn::ArgRequired, it->longopt, "");
                 r.got_error = true;
+                if ((flags & Flags::StopAtFirstError) != Flags::None)
+                    return r.update_argcv(i, argc, argv);
             }
         }
     }
-    r.argc = argc - i;
-    r.argv = &argv[i];
-    return r;
+    return r.update_argcv(i, argc, argv);
 }
 
 /* A simple helper that sets no flags and the warning callback to the default printer. */
