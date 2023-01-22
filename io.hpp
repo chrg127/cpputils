@@ -25,56 +25,7 @@
 #include <expected.hpp>
 #include "common.hpp"
 
-#if defined(PLATFORM_LINUX)
-#   include <fcntl.h>
-#   include <sys/mman.h>
-#   include <sys/stat.h>
-#   include <unistd.h>
-#else
-#   warning "platform not supported"
-#endif
-
 namespace io {
-
-namespace detail {
-
-inline void file_deleter(FILE *fp)
-{
-    if (fp && fp != stdin && fp != stdout && fp != stderr)
-        std::fclose(fp);
-}
-
-#ifdef PLATFORM_LINUX
-
-inline std::pair<u8 *, std::size_t> open_mapped_file(std::filesystem::path path)
-{
-    int fd = ::open(path.c_str(), O_RDWR);
-    if (fd < 0)
-        return {nullptr, 0};
-    struct stat statbuf;
-    int err = fstat(fd, &statbuf);
-    if (err < 0)
-        return {nullptr, 0};
-    auto *ptr = (u8 *) mmap(nullptr, statbuf.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (ptr == MAP_FAILED)
-        return {nullptr, 0};
-    close(fd);
-    return {ptr, static_cast<std::size_t>(statbuf.st_size)};
-}
-
-inline void close_mapped_file(u8 *ptr, std::size_t len)
-{
-    if (ptr) ::munmap(ptr, len);
-}
-
-#endif
-
-inline std::error_code make_error()
-{
-    return std::error_code(errno, std::system_category());
-}
-
-} // namespace detail
 
 /* A file can be opened in one of four ways: */
 enum class Access { Read, Write, Modify, Append, };
@@ -82,6 +33,22 @@ enum class Access { Read, Write, Modify, Append, };
 /* A type returned when opening a file. */
 template <typename T>
 using Result = tl::expected<T, std::error_code>;
+
+namespace detail {
+    inline void file_deleter(FILE *fp)
+    {
+        if (fp && fp != stdin && fp != stdout && fp != stderr)
+            std::fclose(fp);
+    }
+
+    inline std::error_code make_error()
+    {
+        return std::error_code(errno, std::system_category());
+    }
+
+    std::pair<u8 *, std::size_t> open_mapped_file(std::filesystem::path path, Access access);
+    void close_mapped_file(u8 *ptr, std::size_t len);
+} // namespace detail
 
 /*
  * This is a RAII-style thin wrapper over a FILE *. It will automatically close
@@ -197,9 +164,9 @@ public:
         return *this;
     }
 
-    static Result<MappedFile> open(std::filesystem::path path)
+    static Result<MappedFile> open(std::filesystem::path path, Access access)
     {
-        auto [p, s] = detail::open_mapped_file(path);
+        auto [p, s] = detail::open_mapped_file(path, access);
         if (!p)
             return tl::unexpected(detail::make_error());
         return MappedFile(p, s, path);

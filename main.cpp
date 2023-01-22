@@ -11,6 +11,8 @@
 #include "callcommand.hpp"
 #include "array.hpp"
 
+namespace fs = std::filesystem;
+
 void print_cmdline_result(std::span<const cmdline::Option> opts, cmdline::Result &r)
 {
     for (auto &opt : opts) {
@@ -229,6 +231,17 @@ void test_arrays(int x)
         fmt::print("{}\n", elem);
 }
 
+void test_mapped_file()
+{
+    auto f = io::MappedFile::open(fs::path("concepts.hpp"), io::Access::Read);
+    if (!f) {
+        fmt::print("[{}] {}\n", f.error().value(), f.error().message());
+        return;
+    }
+    for (auto c : f.value())
+        fmt::print("{}", (char) c);
+}
+
 int main(int argc, char *argv[])
 {
     // test_cmdline(argc, argv);
@@ -245,5 +258,6 @@ int main(int argc, char *argv[])
     // test_call_command();S
     // test_2dspan();
     // test_arrays(150);
+    test_mapped_file();
     return 0;
 }
