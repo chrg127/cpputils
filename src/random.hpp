@@ -36,8 +36,8 @@ struct Generator {
     static const size_t state_size = 4;
 
 private:
-    std::array<result_type, state_size> state;
     std::array<result_type, state_size> seed;
+    std::array<result_type, state_size> state;
 
 public:
     explicit Generator(std::array<result_type, state_size> s) : seed(s), state(s) { }

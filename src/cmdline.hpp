@@ -171,7 +171,7 @@ inline Result parse(int argc, char *argv[], std::span<const Option> opts,
             else
                 r.non_opts.push_back(cur);
         else if (cur[1] != '-') {   // (group of) short option(s)
-            for (int j = 1; j < cur.size(); j++) {
+            for (auto j = 1u; j < cur.size(); j++) {
                 auto it = detail::find_opt(cur[j], opts);
                 if (it == opts.end()) {
                     warning(Warn::InvalidOption, cur.substr(j, 1), "");

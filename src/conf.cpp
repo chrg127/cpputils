@@ -55,7 +55,7 @@ struct Lexer {
 
     Token make(Token::Type type, std::string_view msg = "")
     {
-        return (Token) {
+        return Token {
             .type = type,
             .text = msg.empty() ? text.substr(start, cur - start) : msg,
             .pos  = start,
