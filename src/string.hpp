@@ -29,7 +29,6 @@
 #include <string_view>
 #include <type_traits>
 #include <vector>
-#include "concepts.hpp"
 
 namespace string {
 
@@ -92,8 +91,9 @@ inline void trim_in_place(T &s)
     s.erase(s.begin(), i);
 }
 
-template <Number T = int, typename TStr = std::string>
+template <typename T = int, typename TStr = std::string>
 inline std::optional<T> to_number(const TStr &str, unsigned base = 10)
+    requires std::is_integral_v<T> || std::is_floating_point_v<T>
 {
     auto helper = [](const char *start, const char *end, unsigned base) -> std::optional<T> {
         T value = 0;
