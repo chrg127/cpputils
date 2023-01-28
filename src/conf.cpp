@@ -12,7 +12,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-std::string type_to_string(conf::Type t)
+std::string_view type_to_string(conf::Type t)
 {
     switch (t) {
     case conf::Type::Int:    return "int";
@@ -36,8 +36,7 @@ bool is_ident_char(char c) { return string::is_alpha(c) || c == '_' || c == '-';
 
 struct Lexer {
     std::string_view text;
-    std::size_t cur   = 0;
-    std::size_t start = 0;
+    std::size_t cur = 0, start = 0;
 
     explicit Lexer(std::string_view s) : text{s} {}
 
@@ -81,13 +80,12 @@ struct Lexer {
     {
         while (string::is_digit(text[cur]))
             advance();
-        if (peek() == '.') {
+        if (peek() != '.')
+            return make(Token::Type::Int);
+        advance();
+        while (string::is_digit(text[cur]))
             advance();
-            while (string::is_digit(text[cur]))
-                advance();
-            return make(Token::Type::Float);
-        }
-        return make(Token::Type::Int);
+        return make(Token::Type::Float);
     }
 
     Token ident()
@@ -130,69 +128,34 @@ struct Parser {
     Lexer lexer;
     Token cur, prev;
     bool had_error = false;
-    const conf::ValidConfig &valid;
 
     struct ParseError : std::runtime_error {
         using std::runtime_error::runtime_error;
         using std::runtime_error::what;
     };
 
-    explicit Parser(std::string_view s, const conf::ValidConfig &v) : lexer{s}, valid{v} {}
+    explicit Parser(std::string_view s) : lexer{s} {}
 
     void error(Token t, std::string_view msg)
     {
         had_error = true;
         auto [line, col] = lexer.position_of(t);
-        throw ParseError(fmt::format("{}:{}: parse error{}: {}",
-            line, col,
-              t.type == Token::Type::End   ? " on end of file"
-            : t.type == Token::Type::Error ? ""
-            : fmt::format(" at '{}'", t.text),
-            msg)
+        throw ParseError(
+            fmt::format("{}:{}: parse error{}: {}",
+                line, col, t.type == Token::Type::End   ? " on end of file"
+                         : t.type == Token::Type::Error ? ""
+                         : fmt::format(" at '{}'", t.text), msg)
         );
     }
 
     void advance()
     {
-        prev = cur;
-        cur = lexer.lex();
-        if (cur.type == Token::Type::Error)
+        if (prev = cur, cur = lexer.lex(), cur.type == Token::Type::Error)
             error(cur, cur.text);
     }
 
-    void consume(Token::Type type, std::string_view msg)
-    {
-        if (cur.type == type) {
-            advance();
-            return;
-        }
-        error(prev, msg);
-    }
-
-    bool match(Token::Type type)
-    {
-        if (cur.type != type)
-            return false;
-        advance();
-        return true;
-    }
-
-    void add(conf::Type type, conf::Data &data, Token ident, Token t)
-    {
-        auto r = valid.find(std::string(ident.text));
-        if (r == valid.end())
-            error(ident, "invalid key");
-        if (type != r->second.type())
-            error(t, fmt::format("mismatched types for key '{}' (got {}, should be {})",
-                    ident.text, type_to_string(type), type_to_string(r->second.type())));
-        auto &pos = data[std::string(ident.text)];
-        switch (type) {
-        case conf::Type::Int:    pos = conf::Value(string::to_number<  int>(t.text).value()); break;
-        case conf::Type::Float:  pos = conf::Value(string::to_number<float>(t.text).value()); break;
-        case conf::Type::String: pos = conf::Value(std::string(t.text.substr(1, t.text.size() - 2))); break;
-        case conf::Type::Bool:   pos = conf::Value(t.type == Token::Type::True); break;
-        }
-    }
+    void consume(Token::Type type, std::string_view msg) { cur.type == type ? advance() : error(prev, msg); }
+    bool match(Token::Type type)                         { if (cur.type != type) return false; else { advance(); return true; } }
 
     std::optional<conf::Data> parse(auto &&display_error)
     {
@@ -204,11 +167,12 @@ struct Parser {
                     consume(Token::Type::Ident, "expected identifier");
                     auto ident = prev;
                     consume(Token::Type::EqualSign, fmt::format("expected '=' after identifier '{}'", ident.text));
-                         if (match(Token::Type::Int))    add(conf::Type::Int, data, ident, prev);
-                    else if (match(Token::Type::Float))  add(conf::Type::Float, data, ident, prev);
-                    else if (match(Token::Type::String)) add(conf::Type::String, data, ident, prev);
-                    else if (match(Token::Type::True))   add(conf::Type::Bool, data, ident, prev);
-                    else if (match(Token::Type::False))  add(conf::Type::Bool, data, ident, prev);
+                    auto &pos = data[std::string(ident.text)];
+                         if (match(Token::Type::Int))    pos = conf::Value(string::to_number<  int>(prev.text).value());
+                    else if (match(Token::Type::Float))  pos = conf::Value(string::to_number<float>(prev.text).value());
+                    else if (match(Token::Type::String)) pos = conf::Value(std::string(prev.text.substr(1, prev.text.size() - 2)));
+                    else if (match(Token::Type::True)
+                          || match(Token::Type::False))  pos = conf::Value(prev.type == Token::Type::True);
                     else error(prev, "expected value after '='");
                     consume(Token::Type::Newline, fmt::format("expected newline after value '{}'", prev.text));
                 }
@@ -229,53 +193,69 @@ struct Parser {
 
 namespace conf {
 
-std::optional<Data> parse(std::string_view text, const ValidConfig &valid,
-                          std::function<void(std::string_view)> display_error)
+std::optional<Data> parse(std::string_view text, DisplayCallback error)
 {
-    Parser parser{text, valid};
-    auto res = parser.parse(display_error);
+    Parser parser{text};
+    auto res = parser.parse(error);
     if (!res)
         return std::nullopt;
-    auto &data = res.value();
-    for (auto [k, v] : valid) {
-        if (auto r = data.find(k); r == data.end()) {
-            display_error(fmt::format("warning: missing key '{}' (default will be used)", k));
-            data[k] = v;
-        }
-    }
-    return data;
+    return res;
 }
 
-void create(fs::path path, const Data &conf, std::function<void(std::string_view)> display_error)
+Data validate(Data conf, const Data &valid_conf, DisplayCallback warning)
+{
+    // remove invalid keys
+    for (auto [k, v] : conf) {
+        if (auto r = valid_conf.find(k); r == valid_conf.end()) {
+            warning(fmt::format("warning: invalid key '{}' (will be removed)", k));
+            conf.erase(k);
+        }
+    }
+    // find missing keys and type match existing ones
+    for (auto [k, v] : valid_conf) {
+        auto r = conf.find(k);
+        if (r == conf.end()) {
+            warning(fmt::format("warning: missing key '{}' (default '{}' will be used)", k, v.to_string()));
+            conf[k] = v;
+        } else if (v.type() != r->second.type()) {
+            warning(fmt::format("warning: mismatched types for key '{}' (expected {}, got {}) (default '{}' will be used)",
+                    k, type_to_string(r->second.type()), type_to_string(v.type()), v.to_string()));
+            conf[k] = v;
+        }
+    }
+    return conf;
+}
+
+void create(fs::path path, const Data &conf, DisplayCallback error)
 {
     if (conf.size() == 0) {
-        display_error(fmt::format("error: no data"));
+        error(fmt::format("error: no data"));
         return;
     }
     auto file = io::File::open(path, io::Access::Write);
     if (!file) {
-        display_error(fmt::format("error: couldn't create file {}\n", path.c_str()));
+        error(fmt::format("error: couldn't create file {}: {}\n",
+                path.string(), file.error().message()));
         return;
     }
-    auto max = std::max_element(conf.begin(), conf.end(), [](const auto &a, const auto &b) {
+    auto width = std::max_element(conf.begin(), conf.end(), [](const auto &a, const auto &b) {
         return a.first.size() < b.first.size();
-    });
-    std::size_t width = max->first.size();
+    })->first.size();
     for (auto [k, v] : conf)
         fmt::print(file.value().data(), "{:{}} = {}\n", k, width, v.to_string());
 }
 
-std::optional<Data> parse_or_create(fs::path path, const ValidConfig &valid,
-                                    std::function<void(std::string_view)> display_error)
+std::optional<Data> parse_or_create(fs::path path, const Data &defaults,
+    DisplayCallback error)
 {
     auto text = io::read_file(path);
     if (!text) {
-        display_error(fmt::format("error: couldn't open file {}, creating new one...", path.c_str()));
-        Data data(valid);
-        create(path, data, display_error);
-        return data;
+        error(fmt::format("warning: couldn't open file {} ({}), creating new one...",
+                path.string(), text.error().message()));
+        create(path, defaults, error);
+        return defaults;
     }
-    return parse(text.value(), valid, display_error);
+    return parse(text.value(), error);
 }
 
 std::optional<fs::path> find_file(std::string_view name)

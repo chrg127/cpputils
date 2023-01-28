@@ -79,7 +79,7 @@ int test_read_file(const char *path)
     return 0;
 }
 
-const conf::ValidConfig valid_conf = {
+const conf::ValidConfig defaults = {
     { "a", conf::Value("f") },
     { "b", conf::Value(1.0f) },
     { "c", conf::Value(false) },
@@ -94,16 +94,28 @@ void test_conf()
         return;
     }
     std::string errors = "";
-    auto data = conf::parse(text.value(), valid_conf, [&](std::string_view msg) {
+    auto data = conf::parse(text.value(), [&](std::string_view msg) {
         errors += "    " + std::string(msg) + "\n";
     });
-    if (!errors.empty())
-        fmt::print("errors on parsing conf file {}:\n{}", path, errors);
-    if (!data)
+    if (!data) {
+        if (!errors.empty())
+            fmt::print("errors on parsing conf file {}:\n{}", path, errors);
         return;
+    }
     for (auto [k, v] : data.value())
         fmt::print("{} = {}\n", k, v.to_string());
     return;
+}
+
+void test_conf2()
+{
+    auto conf = conf::parse_or_create("conf_test.txt", defaults, [&](std::string_view msg) {
+        fmt::print("{}\n", msg);
+    });
+    if (!conf)
+        return;
+    for (auto [k, v] : conf.value())
+        fmt::print("{} = {}\n", k, v.to_string());
 }
 
 void test_find_file(std::string_view name)
@@ -258,6 +270,8 @@ int main(int argc, char *argv[])
     // test_call_command();S
     // test_2dspan();
     // test_arrays(150);
-    test_mapped_file();
+    // test_mapped_file();
+    // test_conf();
+    test_conf2();
     return 0;
 }

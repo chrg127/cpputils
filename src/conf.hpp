@@ -5,7 +5,7 @@
  * or float), a string or a boolean.
  * The library implements function for reading and write these kind of files.
  *
- * It is worth noting that this library depends on io.hpp and string.hpp.
+ * This library depends on io.hpp and string.hpp.
  */
 
 #pragma once
@@ -45,7 +45,7 @@ struct Value {
     {
         switch (value.index()) {
         case 0: return std::to_string(as<int>());
-        case 1: return std::to_string(as<float>()) + "f";
+        case 1: return std::to_string(as<float>());
         case 2: return as<bool>() ? "true" : "false";
         case 3: return "\"" + as<std::string>() + "\"";
         default: return "";
@@ -54,7 +54,10 @@ struct Value {
 };
 
 /* A type representing the data of a configuration file. */
-using Data        = std::map<std::string, Value>;
+using Data = std::map<std::string, Value>;
+
+/* A type used for error callbacks */
+using DisplayCallback = std::function<void(std::string_view)>;
 
 /*
  * A type describing which combination of keys and values are valid for a
@@ -79,28 +82,44 @@ using ValidConfig = std::map<std::string, Value>;
  * @text: the contents of the configuration file.
  * @valid: describes which are valid keys and value types, as well the default
  *         values for each key.
- * @display_error: a callback function that display an error to the user. It
- *                 takes a single string parameter, which is the message to
- *                 print.
+ * @error: a callback function that display an error to the user. It
+ *                 takes as a parameter the error message.
  * It returns the data of the configuration, or std::nullopt on parse error.
  */
 std::optional<Data> parse(
     std::string_view text,
-    const ValidConfig &valid,
-    std::function<void(std::string_view)> display_error
+    DisplayCallback error
+);
+
+/*
+ * Validates configuration data using @valid as a template.
+ * The function checks for missing keys (keys that are in @valid but not in
+ * @data), invalid keys (keys that are in @data but not in @valid) and
+ * mismatched types. Invalid keys are deleted, everything else is replaced
+ * with a default value.
+ * @data: the configuration data to validate.
+ * @valid: a template for which keys are valid and which type of values they
+ *         should have. Values are taken as default values.
+ * @warning: a callback function that should display an error. It takes as a
+ *           parameter the warning message.
+ */
+Data validate(
+    Data conf,
+    const Data &valid_conf,
+    DisplayCallback warning
 );
 
 /*
  * Creates a configuration file.
  * @path: the path of the file to create.
  * @conf: the configuration data to write.
- * @display_error: a callback function that displays an error. Works like in
- *                 the function above.
+ * @error: a callback function that should display an error. It takes as a
+ *           parameter the error message.
  */
 void create(
     std::filesystem::path path,
     const Data &conf,
-    std::function<void(std::string_view)> display_error
+    DisplayCallback error
 );
 
 /*
@@ -110,14 +129,14 @@ void create(
  *     - Create the file with default values if it doesn't.
  *
  * @path: the path of the file to parse/create;
- * @valid: describe what the valid configuration data looks like;
- * @display_error: a callback function that displays an error. Works like in
- *                 the functions above.
+ * @defaults: default data to write when creating;
+ * @error: a callback function that should display an error. It takes as a
+ *           parameter the error message.
  */
 std::optional<Data> parse_or_create(
     std::filesystem::path path,
-    const ValidConfig &valid,
-    std::function<void(std::string_view)> display_error
+    const Data &defaults,
+    DisplayCallback error
 );
 
 /*
