@@ -1,6 +1,6 @@
+#include "../src/string.hpp"
 #include <catch2/catch.hpp>
 #include <fmt/core.h>
-#include "../src/string.hpp"
 
 TEST_CASE("Split a string", "[string]") {
     std::string test = "1,2,3";

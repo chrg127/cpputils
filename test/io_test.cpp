@@ -1,52 +1,35 @@
+#include "../src/io.hpp"
 #include <catch2/catch.hpp>
 #include <fmt/core.h>
-#include "../src/io.hpp"
 
-namespace fs = std::filesystem;
+TEST_CASE("read_file test", "[io]")
+{
+    auto text = io::read_file("test/io_test.txt");
+    REQUIRE(text.has_value());
+    REQUIRE(text.value() == "first line\nsecond line\nthird line\n");
+}
 
-// int test_read_file(const char *path)
-// {
-//     auto text = io::read_file(path);
-//     if (!text)
-//         printf("couldn't read file\n");
-//     else
-//         printf("%s\n", text.value().data());
-//     return 0;
-// }
+TEST_CASE("get_line test", "[io]")
+{
+    auto f = io::File::open("test/io_test.txt", io::Access::Read);
+    REQUIRE(f.has_value());
+    std::string line;
+    f.value().get_line(line); REQUIRE(line == "first line");
+    f.value().get_line(line); REQUIRE(line == "second line");
+    f.value().get_line(line); REQUIRE(line == "third line");
+}
 
-// void test_file_get_line()
-// {
-//     auto f = io::File::open("test.txt", io::Access::Read);
-//     if (!f) {
-//         fmt::print("[{}] {}\n", f.error().value(), f.error().message());
-//         return;
-//     }
-//     for (std::string line; f.value().get_line(line); )
-//         fmt::print("line: {}\n", line);
-// }
+TEST_CASE("Testing errors when file doesn't exist", "[io]")
+{
+    auto t = io::read_file("/never_exists.txt");
+    REQUIRE(!t.has_value());
+    REQUIRE(t.error() == std::errc::no_such_file_or_directory);
+}
 
-// void test_error_code()
-// {
-//     std::vector<std::thread> ts;
-//     for (int i = 0; i < 2; i++) {
-//         ts.push_back(std::thread([i]() {
-//             auto f = io::read_file(i == 0 ? "main.cpp" : "/never_exists.txt");
-//             auto err = io::detail::make_error();
-//             fmt::print("msg = {}\n", err.message());
-//         }));
-//     }
-//     for (auto &t : ts)
-//         t.join();
-// }
-
-// void test_mapped_file()
-// {
-//     auto f = io::MappedFile::open(fs::path("concepts.hpp"), io::Access::Read);
-//     if (!f) {
-//         fmt::print("[{}] {}\n", f.error().value(), f.error().message());
-//         return;
-//     }
-//     for (auto c : f.value())
-//         fmt::print("{}", (char) c);
-// }
+TEST_CASE("Testing MappedFile", "[io]")
+{
+    auto f = io::MappedFile::open("test/io_test.txt", io::Access::Read);
+    REQUIRE(f.has_value());
+    REQUIRE(strcmp((const char *) f.value().data(), "first line\nsecond line\nthird line\n") == 0);
+}
 
