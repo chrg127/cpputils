@@ -2,3 +2,4 @@ ignore
 main
 debug
 release
+conf_test.txt
