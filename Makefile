@@ -1,5 +1,10 @@
+.SUFFIXES:
+
 project 	:= cpputil
-files 		:= main.cpp conf.cpp io.cpp
+files 		:= conf.cpp io.cpp
+main_files	:=
+test_files	:= conf_test.cpp cmdline_test.cpp
+test_name	:= test
 platform 	:= linux
 buildtype 	:= debug
 CC 			:= gcc
@@ -7,10 +12,11 @@ CXX 		:= g++
 CFLAGS 		:= -I./external/include -std=c11 -Wall -Wextra -pedantic
 CXXFLAGS 	:= -I./external/include -std=c++20 -Wall -Wextra -pedantic
 LDLIBS 		:= -lfmt
+PREFIX		:= /usr/local
+DESTDIR		:=
+VPATH 		:= src:test
 
-VPATH := src
 outdir := debug
-flags_deps = -MMD -MP -MF $(@:.o=.d)
 ifeq ($(buildtype),debug)
     outdir := debug
     CFLAGS += -g -O0 -fno-inline-functions -DDEBUG
@@ -19,16 +25,39 @@ else ifeq ($(buildtype),release)
     outdir := release
     CFLAGS += -O3 -DNDEBUG
     CXXFLAGS += -O3 -DNDEBUG
+else ifeq ($(buildtype),reldeb)
+	outdir := reldeb
+	CFLAGS += -g -Og -DDEBUG
+	CXXFLAGS += -g -Og -DDEBUG
 else
 	$(error error: invalid value for buildtype)
 endif
 
-objs := $(patsubst %,$(outdir)/%.o,$(files))
+objs 		:= $(patsubst %,$(outdir)/%.o,$(files))
+objs_main	:= $(patsubst %,$(outdir)/%.o,$(main_files))
+objs_test 	:= $(patsubst %,$(outdir)/%.o,$(test_files))
+flags_deps 	= -MMD -MP -MF $(@:.o=.d)
+libs_test 	:= -lCatch2WithMain
 
 all: $(outdir)/$(project)
 
-$(outdir)/$(project): $(outdir) $(objs)
-	$(CXX) $(objs) -o $@ $(LDLIBS)
+test: $(outdir)/$(test_name)
+
+install:
+
+uninstall:
+
+clean:
+	rm -rf $(outdir)
+
+$(outdir)/$(project): $(outdir) $(objs) $(objs_main)
+	$(CXX) $(objs) $(objs_main) -o $@ $(LDLIBS)
+
+$(outdir)/$(test_name): $(outdir) $(objs) $(objs_test)
+	$(CXX) $(objs) $(objs_test) -o $@ $(LDLIBS) $(libs_test)
+
+$(outdir):
+	mkdir -p $(outdir)
 
 -include $(outdir)/*.d
 
@@ -38,10 +67,4 @@ $(outdir)/%.cpp.o: %.cpp
 $(outdir)/%.c.o: %.c
 	$(CC) $(CFLAGS) $(flags_deps) -c $< -o $@
 
-$(outdir):
-	mkdir -p $(outdir)
-
-clean:
-	rm -rf $(outdir)
-
-.PHONY: clean
+.PHONY: clean install uninstall

@@ -53,6 +53,15 @@ struct Value {
     }
 };
 
+template <typename T>
+inline bool operator==(const Value &v, const T &t)
+    requires std::is_same_v<T, int>  || std::is_same_v<T, float>
+          || std::is_same_v<T, bool> || std::is_same_v<T, std::string>
+{
+    const auto *p = std::get_if<T>(&v.value);
+    return p != nullptr && *p == t;
+}
+
 /* A type representing the data of a configuration file. */
 using Data = std::map<std::string, Value>;
 
