@@ -3,7 +3,9 @@
 project 	:= cpputil
 files 		:= conf.cpp io.cpp
 main_files	:=
-test_files	:= conf_test.cpp cmdline_test.cpp
+test_files	:= array_test.cpp bits_test.cpp callcommand_test.cpp \
+			   cmdline_test.cpp conf_test.cpp io_test.cpp random_test.cpp \
+			   string_test.cpp
 test_name	:= test
 platform 	:= linux
 buildtype 	:= debug
