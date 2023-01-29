@@ -27,12 +27,14 @@
 #ifndef CMDLINE_HPP_INCLUDED
 #define CMDLINE_HPP_INCLUDED
 
+#include <algorithm>
 #include <cstdio>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
-#include <span>
+#include <vector>
 #include <fmt/core.h>
 
 namespace cmdline {
@@ -82,12 +84,13 @@ struct Result {
     std::unordered_set<std::string_view> opts;
     std::unordered_map<std::string_view, std::string_view> args;
     std::vector<std::string_view> non_opts;
-    int argc; char **argv;
+    int argc;
+    const char **argv;
     bool got_error = false;
     bool found(std::string_view s) const             { return opts.find(s) != opts.end(); }
     void add(std::string_view o)                     { opts.insert(o); }
     void add(std::string_view o, std::string_view a) { opts.insert(o); args[o] = a; }
-    Result &update_argcv(int i, int c, char **v)     { argc = c - i; argv = &v[i]; return *this; }
+    Result &update_argcv(int i, int c, const char **v) { argc = c - i; argv = &v[i]; return *this; }
 };
 
 /*
@@ -153,7 +156,7 @@ inline void default_printer(Warn w, std::string_view o, std::string_view s)
  *           parameters: warning type, name of option, optional string.
  *           Refer to above for information about warning.
  */
-inline Result parse(int argc, char *argv[], std::span<const Option> opts,
+inline Result parse(int argc, const char *argv[], std::span<const Option> opts,
     Flags flags, auto &&warning)
 {
     Result r;
@@ -232,7 +235,8 @@ inline Result parse(int argc, char *argv[], std::span<const Option> opts,
 }
 
 /* A simple helper that sets no flags and the warning callback to the default printer. */
-inline Result parse(int argc, char *argv[], std::span<const Option> opts, Flags f = Flags::None)
+inline Result parse(int argc, const char *argv[], std::span<const Option> opts,
+    Flags f = Flags::None)
 {
     return parse(argc, argv, opts, f, default_printer);
 }
