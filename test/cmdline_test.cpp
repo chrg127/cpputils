@@ -26,13 +26,14 @@ TEST_CASE("Simple cmdline test", "[cmdline]") {
 
 TEST_CASE("Subcommands test", "[cmdline]")
 {
-    const char *argv[] = { "programname", "subcmd", "-h" };
+    const char *argv[] = { "programname", "-h", "subcmd", "-h", nullptr};
     int argc = std::size(argv) - 1;
     auto r = cmdline::parse(argc, argv, args, cmdline::Flags::StopAtFirstNonOption);
     REQUIRE(!r.got_error);
-    REQUIRE(!r.found("help"));
+    REQUIRE(r.found("help"));
     REQUIRE(!r.found("width"));
     REQUIRE(r.argc == 2);
+    REQUIRE(r.argv[0] == std::string_view("subcmd"));
 
     auto rsub = cmdline::parse(r.argc, r.argv, subopts);
     REQUIRE(!rsub.got_error);

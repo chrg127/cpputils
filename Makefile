@@ -13,6 +13,7 @@ CXX 		:= g++
 CFLAGS 		:= -I./external/include -std=c11 -Wall -Wextra -pedantic
 CXXFLAGS 	:= -I./external/include -std=c++20 -Wall -Wextra -pedantic
 LDLIBS 		:= -lfmt
+libs_test 	:= -lCatch2WithMain
 PREFIX		:= /usr/local
 DESTDIR		:=
 VPATH 		:= src:test
@@ -38,7 +39,6 @@ objs 		:= $(patsubst %,$(outdir)/%.o,$(files))
 objs_main	:= $(patsubst %,$(outdir)/%.o,$(main_files))
 objs_test 	:= $(patsubst %,$(outdir)/%.o,$(test_files))
 flags_deps 	= -MMD -MP -MF $(@:.o=.d)
-libs_test 	:= -lCatch2WithMain
 
 all: $(outdir)/$(project)
 

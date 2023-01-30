@@ -85,12 +85,17 @@ struct Result {
     std::unordered_map<std::string_view, std::string_view> args;
     std::vector<std::string_view> non_opts;
     int argc;
-    const char **argv;
+    char const *const *argv;
     bool got_error = false;
     bool found(std::string_view s) const             { return opts.find(s) != opts.end(); }
     void add(std::string_view o)                     { opts.insert(o); }
     void add(std::string_view o, std::string_view a) { opts.insert(o); args[o] = a; }
-    Result &update_argcv(int i, int c, const char **v) { argc = c - i; argv = &v[i]; return *this; }
+    Result &update_argcv(int i, int c, char const *const *v)
+    {
+        argc = c - i;
+        argv = &v[i];
+        return *this;
+    }
 };
 
 /*
@@ -156,7 +161,7 @@ inline void default_printer(Warn w, std::string_view o, std::string_view s)
  *           parameters: warning type, name of option, optional string.
  *           Refer to above for information about warning.
  */
-inline Result parse(int argc, const char *argv[], std::span<const Option> opts,
+inline Result parse(int argc, char const *const argv[], std::span<const Option> opts,
     Flags flags, auto &&warning)
 {
     Result r;
@@ -209,7 +214,7 @@ inline Result parse(int argc, const char *argv[], std::span<const Option> opts,
                 warning(Warn::InvalidOption, opt, "");
                 r.got_error = true;
                 if ((flags & Flags::StopAtFirstError) != Flags::None)
-                    return r.update_argcv(i, argc, argv);
+                    break;
             } else if (it->arg == ArgType::None) {
                 if (eqpos != cur.npos)
                     warning(Warn::ArgIgnored, opt, cur.substr(eqpos+1));
@@ -227,7 +232,7 @@ inline Result parse(int argc, const char *argv[], std::span<const Option> opts,
                 warning(Warn::ArgRequired, it->longopt, "");
                 r.got_error = true;
                 if ((flags & Flags::StopAtFirstError) != Flags::None)
-                    return r.update_argcv(i, argc, argv);
+                    break;
             }
         }
     }
@@ -235,7 +240,7 @@ inline Result parse(int argc, const char *argv[], std::span<const Option> opts,
 }
 
 /* A simple helper that sets no flags and the warning callback to the default printer. */
-inline Result parse(int argc, const char *argv[], std::span<const Option> opts,
+inline Result parse(int argc, char const *const argv[], std::span<const Option> opts,
     Flags f = Flags::None)
 {
     return parse(argc, argv, opts, f, default_printer);
