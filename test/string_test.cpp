@@ -1,5 +1,5 @@
 #include "../src/string.hpp"
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <fmt/core.h>
 
 TEST_CASE("Split a string", "[string]") {
