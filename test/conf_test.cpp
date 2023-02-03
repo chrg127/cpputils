@@ -2,16 +2,22 @@
 #include <catch2/catch.hpp>
 #include <fmt/core.h>
 
-const conf::ValidConfig defaults = {
+const std::map<std::string, conf::Value> defaults = {
     { "a", conf::Value("f") },
     { "b", conf::Value(1.0f) },
     { "c", conf::Value(false) },
 };
 
 TEST_CASE("Simple conf test", "[conf]") {
-    auto conf = conf::parse_or_create("conf_test.txt", defaults);
-    REQUIRE(bool(conf));
-    REQUIRE(conf.value()["a"] == std::string("f"));
-    REQUIRE(conf.value()["b"] == 1.0f);
-    REQUIRE(conf.value()["c"] == false);
+    auto text = R"(
+        a = "f"
+        b = 1.0
+        c = false
+    )";
+    auto res = conf::parse(text);
+    REQUIRE(bool(res));
+    auto &conf = res.value();
+    REQUIRE(conf["a"] == std::string("f"));
+    REQUIRE(conf["b"] == 1.0f);
+    REQUIRE(conf["c"] == false);
 }

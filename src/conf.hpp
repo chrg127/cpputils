@@ -23,12 +23,23 @@
 
 namespace conf {
 
+enum class Type { Int, Float, Bool, String };
+
+inline std::string_view type_to_string(conf::Type t)
+{
+    switch (t) {
+    case conf::Type::Int:    return "int";
+    case conf::Type::Float:  return "float";
+    case conf::Type::Bool:   return "bool";
+    case conf::Type::String: return "string";
+    default: return "";
+    }
+}
+
 /*
  * A Value in a configuration file. Can be one of: number (integer), number
  * (floating point), boolean or string.
  */
-enum class Type { Int, Float, Bool, String };
-
 struct Value {
     std::variant<int, float, bool, std::string> value;
 
@@ -102,28 +113,8 @@ struct ParseError {
 /* A type representing the data of a configuration file. */
 using Data = std::map<std::string, Value>;
 
-/* A type used for error callbacks */
-using DisplayCallback = std::function<void(std::string_view)>;
-
+/* Result of parsing is either the configuration data or a list of errors. */
 using ParseResult = tl::expected<Data, std::vector<ParseError>>;
-
-/*
- * A type describing which combination of keys and values are valid for a
- * configuration file. The parser uses this information to discard invalid keys
- * or keys with invalid value types.
- * For example:
- *
- * const ValidConfig valid_conf = {
- *     { "logfile", conf::Value("error.log") },
- *     { "width",   conf::Value(0) },
- *     { "height",  conf::Value(1.0f) }
- * };
- *
- * The values of the Value's describe the default value for the key: if, during
- * the parsing process, a key is found, but its value is invalid, then the
- * default specified will be selected.
- */
-using ValidConfig = std::map<std::string, Value>;
 
 /*
  * This function parses a configuration file.
@@ -135,24 +126,6 @@ using ValidConfig = std::map<std::string, Value>;
  * It returns the data of the configuration, or std::nullopt on parse error.
  */
 ParseResult parse(std::string_view text);
-
-/*
- * Validates configuration data using @valid as a template.
- * The function checks for missing keys (keys that are in @valid but not in
- * @data), invalid keys (keys that are in @data but not in @valid) and
- * mismatched types. Invalid keys are deleted, everything else is replaced
- * with a default value.
- * @data: the configuration data to validate.
- * @valid: a template for which keys are valid and which type of values they
- *         should have. Values are taken as default values.
- * @warning: a callback function that should display an error. It takes as a
- *           parameter the warning message.
- */
-Data validate(
-    Data conf,
-    const Data &valid_conf,
-    DisplayCallback warning
-);
 
 /*
  * Creates a configuration file.
@@ -175,6 +148,24 @@ std::error_code create(std::filesystem::path path, const Data &conf);
  *           parameter the error message.
  */
 ParseResult parse_or_create(std::filesystem::path path, const Data &defaults);
+
+/*
+ * Validates configuration data using @valid as a template.
+ * The function checks for missing keys (keys that are in @valid but not in
+ * @data), invalid keys (keys that are in @data but not in @valid) and
+ * mismatched types. Invalid keys are deleted, everything else is replaced
+ * with a default value.
+ * @data: the configuration data to validate.
+ * @valid: a template for which keys are valid and which type of values they
+ *         should have. Values are taken as default values.
+ * @warning: a callback function that should display an error. It takes as a
+ *           parameter the warning message.
+ */
+Data validate(
+    Data conf,
+    const Data &valid_conf,
+    std::function<void(std::string_view)> warning
+);
 
 /*
  * Tries to search for the configuration file on the file system.
