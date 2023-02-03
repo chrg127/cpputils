@@ -18,6 +18,8 @@
 #include <optional>
 #include <functional>
 #include <filesystem>
+#include <system_error>
+#include <expected.hpp>
 
 namespace conf {
 
@@ -62,11 +64,44 @@ inline bool operator==(const Value &v, const T &t)
     return p != nullptr && *p == t;
 }
 
+/* Types of erros found by the parser. */
+enum class ErrorType {
+    NoIdent,
+    NoEqualAfterIdent,
+    NoValueAfterEqual,
+    NoNewlineAfterValue,
+    UnterminatedString,
+    UnexpectedCharacter,
+};
+
+/* For constructing std::error_conditions. */
+struct ConfErrorCategory : public std::error_category {
+    ~ConfErrorCategory() {}
+    const char *name() const noexcept { return "conf error"; }
+    std::string message(int n) const;
+};
+
+inline ConfErrorCategory conf_error_category;
+
+/*
+ * A parse error:
+ * @line, @col: line and column into the file
+ * @prev, @cur: tokens affected (might be the same)
+ * @error: what kind of error
+ */
+struct ParseError {
+    std::error_condition error;
+    std::size_t line, col;
+    std::string prev, cur;
+};
+
 /* A type representing the data of a configuration file. */
 using Data = std::map<std::string, Value>;
 
 /* A type used for error callbacks */
 using DisplayCallback = std::function<void(std::string_view)>;
+
+using ParseResult = tl::expected<Data, std::vector<ParseError>>;
 
 /*
  * A type describing which combination of keys and values are valid for a
@@ -125,11 +160,7 @@ Data validate(
  * @error: a callback function that should display an error. It takes as a
  *           parameter the error message.
  */
-void create(
-    std::filesystem::path path,
-    const Data &conf,
-    DisplayCallback error
-);
+std::error_code create(std::filesystem::path path, const Data &conf);
 
 /*
  * Checks if a configuration file exists and:

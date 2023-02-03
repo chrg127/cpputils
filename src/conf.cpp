@@ -10,6 +10,8 @@
 
 namespace fs = std::filesystem;
 
+namespace conf {
+
 namespace {
 
 std::string_view type_to_string(conf::Type t)
@@ -25,8 +27,8 @@ std::string_view type_to_string(conf::Type t)
 
 struct Token {
     enum class Type {
-        Ident, Int, Float, True, False,
-        String, EqualSign, Newline, Error, End,
+        Ident, Int, Float, True, False, String, EqualSign, Newline,
+        ErrorUnterminated, ErrorUnexpected, End,
     } type;
     std::string_view text;
     std::size_t pos;
@@ -52,11 +54,11 @@ struct Lexer {
         return std::make_pair(line, column);
     }
 
-    Token make(Token::Type type, std::string_view msg = "")
+    Token make(Token::Type type)
     {
         return Token {
             .type = type,
-            .text = msg.empty() ? text.substr(start, cur - start) : msg,
+            .text = text.substr(start, cur - start),
             .pos  = start,
         };
     }
@@ -103,7 +105,7 @@ struct Lexer {
         while (peek() != '"' && !at_end())
             advance();
         if (at_end())
-            return make(Token::Type::Error, "unterminated string");
+            return make(Token::Type::ErrorUnterminated);
         advance();
         return make(Token::Type::String);
     }
@@ -120,86 +122,92 @@ struct Lexer {
              : c == '"'    ? string_token()
              : string::is_digit(c) ? number()
              : is_ident_char(c) ? ident()
-             : make(Token::Type::Error, "unexpected character");
+             : make(Token::Type::ErrorUnexpected);
     }
 };
 
 struct Parser {
     Lexer lexer;
     Token cur, prev;
-    bool had_error = false;
-
-    struct ParseError : std::runtime_error {
-        using std::runtime_error::runtime_error;
-        using std::runtime_error::what;
-    };
+    std::vector<ParseError> errors;
 
     explicit Parser(std::string_view s) : lexer{s} {}
 
-    void error(Token t, std::string_view msg)
+    void error(Token t, ErrorType err)
     {
-        had_error = true;
         auto [line, col] = lexer.position_of(t);
-        throw ParseError(
-            fmt::format("{}:{}: parse error{}: {}",
-                line, col, t.type == Token::Type::End   ? " on end of file"
-                         : t.type == Token::Type::Error ? ""
-                         : fmt::format(" at '{}'", t.text), msg)
-        );
+        throw ParseError {
+            .error = std::error_condition(static_cast<int>(err), conf_error_category),
+            .line = std::size_t(line), .col = col,
+            .prev = std::string(prev.text),
+            .cur  = t.type == Token::Type::End ? "end" : std::string(t.text),
+        };
     }
 
     void advance()
     {
-        if (prev = cur, cur = lexer.lex(), cur.type == Token::Type::Error)
-            error(cur, cur.text);
+        prev = cur, cur = lexer.lex();
+        if (cur.type == Token::Type::ErrorUnterminated) error(cur, ErrorType::UnterminatedString);
+        if (cur.type == Token::Type::ErrorUnexpected)   error(cur, ErrorType::UnexpectedCharacter);
     }
 
-    void consume(Token::Type type, std::string_view msg) { cur.type == type ? advance() : error(prev, msg); }
-    bool match(Token::Type type)                         { if (cur.type != type) return false; else { advance(); return true; } }
+    void consume(Token::Type type, ErrorType err) { cur.type == type ? advance() : error(prev, err); }
+    bool match(Token::Type type)                  { if (cur.type != type) return false; else { advance(); return true; } }
 
-    std::optional<conf::Data> parse(auto &&display_error)
+    ParseResult parse()
     {
         conf::Data data;
         advance();
         while (!lexer.at_end()) {
             try {
                 if (!match(Token::Type::Newline)) {
-                    consume(Token::Type::Ident, "expected identifier");
+                    consume(Token::Type::Ident, ErrorType::NoIdent);
                     auto ident = prev;
-                    consume(Token::Type::EqualSign, fmt::format("expected '=' after identifier '{}'", ident.text));
+                    consume(Token::Type::EqualSign, ErrorType::NoEqualAfterIdent); // used ident.text in fmt::format()
                     auto &pos = data[std::string(ident.text)];
                          if (match(Token::Type::Int))    pos = conf::Value(string::to_number<  int>(prev.text).value());
                     else if (match(Token::Type::Float))  pos = conf::Value(string::to_number<float>(prev.text).value());
                     else if (match(Token::Type::String)) pos = conf::Value(std::string(prev.text.substr(1, prev.text.size() - 2)));
                     else if (match(Token::Type::True)
                           || match(Token::Type::False))  pos = conf::Value(prev.type == Token::Type::True);
-                    else error(prev, "expected value after '='");
-                    consume(Token::Type::Newline, fmt::format("expected newline after value '{}'", prev.text));
+                    else error(prev, ErrorType::NoValueAfterEqual);
+                    consume(Token::Type::Newline, ErrorType::NoNewlineAfterValue); // used prev.text in fmt::format()
                 }
             } catch (const ParseError &error) {
-                display_error(error.what());
+                errors.push_back(error);
                 while (cur.type != Token::Type::End && cur.type != Token::Type::Newline)
                     advance();
                 advance();
             }
         }
-        if (had_error)
-            return std::nullopt;
+        if (!errors.empty())
+            return tl::unexpected(errors);
         return data;
     }
 };
 
 } // namespace
 
-namespace conf {
+std::string ConfErrorCategory::message(int n) const
+{
+    switch (static_cast<ErrorType>(n)) {
+    case ErrorType::NoIdent:                return "expected identifier";
+    case ErrorType::NoEqualAfterIdent:      return "expected '=' after identifier";
+    case ErrorType::NoValueAfterEqual:      return "expected value after '='";
+    case ErrorType::NoNewlineAfterValue:    return "expected newline after value";
+    case ErrorType::UnterminatedString:     return "unterminated string";
+    case ErrorType::UnexpectedCharacter:    return "unexpected character";
+    default:                                return "unknown error";
+    }
+}
 
 std::optional<Data> parse(std::string_view text, DisplayCallback error)
 {
     Parser parser{text};
-    auto res = parser.parse(error);
+    auto res = parser.parse(/*error*/);
     if (!res)
         return std::nullopt;
-    return res;
+    return res.value();
 }
 
 Data validate(Data conf, const Data &valid_conf, DisplayCallback warning)
@@ -226,36 +234,27 @@ Data validate(Data conf, const Data &valid_conf, DisplayCallback warning)
     return conf;
 }
 
-void create(fs::path path, const Data &conf, DisplayCallback error)
+std::error_code create(fs::path path, const Data &conf)
 {
-    if (conf.size() == 0) {
-        error(fmt::format("error: no data"));
-        return;
-    }
     auto file = io::File::open(path, io::Access::Write);
-    if (!file) {
-        error(fmt::format("error: couldn't create file {}: {}\n",
-                path.string(), file.error().message()));
-        return;
-    }
+    if (!file)
+        return file.error();
     auto width = std::max_element(conf.begin(), conf.end(), [](const auto &a, const auto &b) {
         return a.first.size() < b.first.size();
     })->first.size();
     for (auto [k, v] : conf)
         fmt::print(file.value().data(), "{:{}} = {}\n", k, width, v.to_string());
+    return std::error_code{};
 }
 
 std::optional<Data> parse_or_create(fs::path path, const Data &defaults,
     DisplayCallback error)
 {
-    auto text = io::read_file(path);
-    if (!text) {
-        error(fmt::format("warning: couldn't open file {} ({}), creating new one...",
-                path.string(), text.error().message()));
-        create(path, defaults, error);
-        return defaults;
-    }
-    return parse(text.value(), error);
+    if (auto text = io::read_file(path); text)
+        return parse(text.value(), error);
+    if (auto err = create(path, defaults); err)
+        return std::nullopt;
+    return defaults;
 }
 
 std::optional<fs::path> find_file(std::string_view name)
