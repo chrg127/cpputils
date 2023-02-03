@@ -218,13 +218,13 @@ ParseResult parse_or_create(fs::path path, const Data &defaults)
     return defaults;
 }
 
-Data validate(Data conf, const Data &valid_conf,
-    std::function<void(std::string_view)> warning)
+std::vector<Warning> validate(Data &conf, const Data &valid_conf)
 {
+    std::vector<Warning> warnings;
     // remove invalid keys
-    for (auto [k, v] : conf) {
+    for (auto [k, _] : conf) {
         if (auto r = valid_conf.find(k); r == valid_conf.end()) {
-            warning(fmt::format("warning: invalid key '{}' (will be removed)", k));
+            warnings.push_back({.type = Warning::Type::InvalidKey, .key = k });
             conf.erase(k);
         }
     }
@@ -232,15 +232,15 @@ Data validate(Data conf, const Data &valid_conf,
     for (auto [k, v] : valid_conf) {
         auto r = conf.find(k);
         if (r == conf.end()) {
-            warning(fmt::format("warning: missing key '{}' (default '{}' will be used)", k, v.to_string()));
+            warnings.push_back({.type = Warning::Type::MissingKey, .key = k });
             conf[k] = v;
         } else if (v.type() != r->second.type()) {
-            warning(fmt::format("warning: mismatched types for key '{}' (expected {}, got {}) (default '{}' will be used)",
-                    k, type_to_string(r->second.type()), type_to_string(v.type()), v.to_string()));
+            warnings.push_back({.type = Warning::Type::MismatchedTypes,
+                                .key  = k });
             conf[k] = v;
         }
     }
-    return conf;
+    return warnings;
 }
 
 std::optional<fs::path> find_file(std::string_view name)

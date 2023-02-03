@@ -149,6 +149,15 @@ std::error_code create(std::filesystem::path path, const Data &conf);
  */
 ParseResult parse_or_create(std::filesystem::path path, const Data &defaults);
 
+struct Warning {
+    enum class Type {
+        InvalidKey,
+        MissingKey,
+        MismatchedTypes,
+    } type;
+    std::string_view key;
+};
+
 /*
  * Validates configuration data using @valid as a template.
  * The function checks for missing keys (keys that are in @valid but not in
@@ -161,11 +170,7 @@ ParseResult parse_or_create(std::filesystem::path path, const Data &defaults);
  * @warning: a callback function that should display an error. It takes as a
  *           parameter the warning message.
  */
-Data validate(
-    Data conf,
-    const Data &valid_conf,
-    std::function<void(std::string_view)> warning
-);
+std::vector<Warning> validate(Data &conf, const Data &valid_conf);
 
 /*
  * Tries to search for the configuration file on the file system.
