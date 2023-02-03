@@ -9,10 +9,8 @@ const conf::ValidConfig defaults = {
 };
 
 TEST_CASE("Simple conf test", "[conf]") {
-    auto conf = conf::parse_or_create("conf_test.txt", defaults, [&](std::string_view msg) {
-        fmt::print("{}\n", msg);
-    });
-    REQUIRE(conf != std::nullopt);
+    auto conf = conf::parse_or_create("conf_test.txt", defaults);
+    REQUIRE(bool(conf));
     REQUIRE(conf.value()["a"] == std::string("f"));
     REQUIRE(conf.value()["b"] == 1.0f);
     REQUIRE(conf.value()["c"] == false);

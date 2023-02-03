@@ -91,8 +91,12 @@ inline ConfErrorCategory conf_error_category;
  */
 struct ParseError {
     std::error_condition error;
-    std::size_t line, col;
+    int line, col;
     std::string prev, cur;
+    static ParseError make(std::error_code e) {
+        return { .error = e.default_error_condition(),
+                 .line = -1, .col = -1, .prev = "", .cur = "" };
+    }
 };
 
 /* A type representing the data of a configuration file. */
@@ -130,10 +134,7 @@ using ValidConfig = std::map<std::string, Value>;
  *                 takes as a parameter the error message.
  * It returns the data of the configuration, or std::nullopt on parse error.
  */
-std::optional<Data> parse(
-    std::string_view text,
-    DisplayCallback error
-);
+ParseResult parse(std::string_view text);
 
 /*
  * Validates configuration data using @valid as a template.
@@ -173,11 +174,7 @@ std::error_code create(std::filesystem::path path, const Data &conf);
  * @error: a callback function that should display an error. It takes as a
  *           parameter the error message.
  */
-std::optional<Data> parse_or_create(
-    std::filesystem::path path,
-    const Data &defaults,
-    DisplayCallback error
-);
+ParseResult parse_or_create(std::filesystem::path path, const Data &defaults);
 
 /*
  * Tries to search for the configuration file on the file system.

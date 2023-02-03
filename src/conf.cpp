@@ -138,7 +138,7 @@ struct Parser {
         auto [line, col] = lexer.position_of(t);
         throw ParseError {
             .error = std::error_condition(static_cast<int>(err), conf_error_category),
-            .line = std::size_t(line), .col = col,
+            .line = line, .col = col,
             .prev = std::string(prev.text),
             .cur  = t.type == Token::Type::End ? "end" : std::string(t.text),
         };
@@ -201,13 +201,10 @@ std::string ConfErrorCategory::message(int n) const
     }
 }
 
-std::optional<Data> parse(std::string_view text, DisplayCallback error)
+ParseResult parse(std::string_view text)
 {
     Parser parser{text};
-    auto res = parser.parse(/*error*/);
-    if (!res)
-        return std::nullopt;
-    return res.value();
+    return parser.parse();
 }
 
 Data validate(Data conf, const Data &valid_conf, DisplayCallback warning)
@@ -247,13 +244,12 @@ std::error_code create(fs::path path, const Data &conf)
     return std::error_code{};
 }
 
-std::optional<Data> parse_or_create(fs::path path, const Data &defaults,
-    DisplayCallback error)
+ParseResult parse_or_create(fs::path path, const Data &defaults)
 {
     if (auto text = io::read_file(path); text)
-        return parse(text.value(), error);
+        return parse(text.value());
     if (auto err = create(path, defaults); err)
-        return std::nullopt;
+        return tl::unexpected(std::vector{ParseError::make(err)});
     return defaults;
 }
 
