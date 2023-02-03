@@ -36,17 +36,17 @@ Result<std::pair<u8 *, std::size_t>> open_mapped_file(std::filesystem::path path
     HANDLE file = CreateFileW(path.c_str(), desired_access, FILE_SHARE_READ,
         nullptr, creation_disposition, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file == INVALID_HANDLE_VALUE)
-        return tl::unexpected(make_error(GetLastError));
+        return tl::unexpected(make_error(GetLastError()));
     auto size = GetFileSize(file, nullptr);
     HANDLE map = CreateFileMapping(file, nullptr, protection, 0, size, nullptr);
     if (map == INVALID_HANDLE_VALUE) {
         CloseHandle(file);
-        return tl::unexpected(make_error(GetLastError));
+        return tl::unexpected(make_error(GetLastError()));
     }
     u8 *data = (u8 *) MapViewOfFile(map, map_access, 0, 0, size);
     CloseHandle(map);
     CloseHandle(file);
-    return { data, size };
+    return std::make_pair(data, size);
 }
 
 int close_mapped_file(u8 *ptr, std::size_t len)

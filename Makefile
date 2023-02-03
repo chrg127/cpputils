@@ -11,9 +11,10 @@ buildtype 	:= debug
 CC 			:= gcc
 CXX 		:= g++
 CFLAGS 		:= -I./external/include -std=c11 -Wall -Wextra -pedantic
-CXXFLAGS 	:= -I./external/include -std=c++20 -Wall -Wextra -pedantic
+CXXFLAGS 	:= -I./external/include -std=c++20 -Wall -Wextra -pedantic \
+			   $(shell pkg-config --cflags catch2-with-main)
 LDLIBS 		:= -lfmt
-libs_test 	:= -lCatch2WithMain
+libs_test 	:= $(shell pkg-config --libs catch2-with-main)
 PREFIX		:= /usr/local
 DESTDIR		:=
 VPATH 		:= src:test
