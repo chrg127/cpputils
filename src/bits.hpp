@@ -1,6 +1,7 @@
 #pragma once
 
 #include <concepts>
+#include <limits>
 #include "common.hpp"
 
 namespace bits {
@@ -105,5 +106,22 @@ namespace literals {
     inline constexpr std::size_t operator"" _Gib(unsigned long long bytes) { return bytes*1024*1024*1024/8; }
     inline constexpr std::size_t operator"" _Tib(unsigned long long bytes) { return bytes*1024*1024*1024*1024/8; }
 } // namespace literals
+
+// Returns largest power of 2 that is <= the given value.
+template <typename T>
+constexpr inline T largest_power_of_2_within(T n)
+    requires std::is_unsigned_v<T>
+{
+    // Set all bits less significant than most significant bit that's set.
+    // e.g. 0b00100111  ->  0b00111111
+    n |= (n >>  1);
+    n |= (n >>  2);
+    n |= (n >>  4);
+    if constexpr(std::numeric_limits<T>::digits == 16) n |= (n >>  8);
+    if constexpr(std::numeric_limits<T>::digits == 32) n |= (n >> 16);
+    if constexpr(std::numeric_limits<T>::digits == 64) n |= (n >> 32);
+    // Clear all set bits besides the highest one.
+    return n - (n >> 1);
+}
 
 } // namespace bits
