@@ -9,6 +9,7 @@
 #include "string.hpp"
 
 namespace fs = std::filesystem;
+using namespace std::literals::string_literals;
 
 namespace conf {
 
@@ -126,8 +127,8 @@ struct Parser {
     {
         auto [line, col] = lexer.position_of(t);
         throw ParseError {
-            .error = std::error_condition(static_cast<int>(err), conf_error_category),
-            .line = line, .col = col,
+            .error = std::error_condition(static_cast<int>(err), errcat),
+            .line = line, .col = std::ptrdiff_t(col),
             .prev = std::string(prev.text),
             .cur  = t.type == Token::Type::End ? "end" : std::string(t.text),
         };
@@ -220,11 +221,11 @@ ParseResult parse_or_create(fs::path path, const Data &defaults)
 
 std::vector<Warning> validate(Data &conf, const Data &valid_conf)
 {
-    std::vector<Warning> warnings;
+    std::vector<Warning> ws;
     // remove invalid keys
     for (auto [k, _] : conf) {
         if (auto r = valid_conf.find(k); r == valid_conf.end()) {
-            warnings.push_back({.type = Warning::Type::InvalidKey, .key = k });
+            ws.push_back({ .type = Warning::Type::InvalidKey, .key = k });
             conf.erase(k);
         }
     }
@@ -232,15 +233,41 @@ std::vector<Warning> validate(Data &conf, const Data &valid_conf)
     for (auto [k, v] : valid_conf) {
         auto r = conf.find(k);
         if (r == conf.end()) {
-            warnings.push_back({.type = Warning::Type::MissingKey, .key = k });
+            ws.push_back({.type = Warning::Type::MissingKey,
+                          .key = k, .newval = v });
             conf[k] = v;
         } else if (v.type() != r->second.type()) {
-            warnings.push_back({.type = Warning::Type::MismatchedTypes,
-                                .key  = k });
+            ws.push_back({ .type = Warning::Type::MismatchedTypes,
+                           .key  = k, .newval = v, .orig = r->second });
             conf[k] = v;
         }
     }
-    return warnings;
+    return ws;
+}
+
+std::string default_message(const ParseError &e)
+{
+    return e.error.category() != conf::errcat
+        ? "error: " + e.error.message()
+        : ""s + std::to_string(e.line) + ":" + std::to_string(e.col)
+        + ": parse error: " + e.error.message();
+}
+
+std::string default_message(const Warning &w)
+{
+    switch (w.type) {
+    case Warning::Type::InvalidKey: return "invalid key '" + w.key + "'";
+    case Warning::Type::MissingKey:
+        return "missing key '" + w.key + "' (default " + w.newval.to_string()
+             + " will be used)";
+    case Warning::Type::MismatchedTypes:
+         return "mismatched types for key '" + w.key
+              + "' (expected type '" + std::string(type_to_string(w.newval.type()))
+              + "', got '" + w.orig.to_string() + "' of type '"
+              + std::string(type_to_string(w.orig.type()))
+              + "') (default '" + w.newval.to_string() + "' will be used)";
+    default: return "";
+    }
 }
 
 std::optional<fs::path> find_file(std::string_view name)

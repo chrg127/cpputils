@@ -92,7 +92,7 @@ struct ConfErrorCategory : public std::error_category {
     std::string message(int n) const;
 };
 
-inline ConfErrorCategory conf_error_category;
+inline ConfErrorCategory errcat;
 
 /*
  * A parse error:
@@ -102,7 +102,7 @@ inline ConfErrorCategory conf_error_category;
  */
 struct ParseError {
     std::error_condition error;
-    int line, col;
+    std::ptrdiff_t line, col;
     std::string prev, cur;
     static ParseError make(std::error_code e) {
         return { .error = e.default_error_condition(),
@@ -149,13 +149,15 @@ std::error_code create(std::filesystem::path path, const Data &conf);
  */
 ParseResult parse_or_create(std::filesystem::path path, const Data &defaults);
 
+/* A Warning type for the validate() function. */
 struct Warning {
     enum class Type {
         InvalidKey,
         MissingKey,
         MismatchedTypes,
     } type;
-    std::string_view key;
+    std::string key;
+    conf::Value newval, orig;
 };
 
 /*
@@ -165,12 +167,14 @@ struct Warning {
  * mismatched types. Invalid keys are deleted, everything else is replaced
  * with a default value.
  * @data: the configuration data to validate.
- * @valid: a template for which keys are valid and which type of values they
- *         should have. Values are taken as default values.
- * @warning: a callback function that should display an error. It takes as a
- *           parameter the warning message.
+ * @valid_conf: a template for which keys are valid and which type of values
+ *              they should have. Values are taken as default values.
  */
 std::vector<Warning> validate(Data &conf, const Data &valid_conf);
+
+/* Returns the parse error / warning as a string. */
+std::string default_message(const ParseError &e);
+std::string default_message(const Warning &w);
 
 /*
  * Tries to search for the configuration file on the file system.

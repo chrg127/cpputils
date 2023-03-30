@@ -2,7 +2,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/core.h>
 
-const std::map<std::string, conf::Value> defaults = {
+const conf::Data defaults = {
     { "a", conf::Value("f") },
     { "b", conf::Value(1.0f) },
     { "c", conf::Value(false) },
