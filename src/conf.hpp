@@ -71,7 +71,7 @@ struct Value {
             if (l.size() > 0)
                 s += l[0].to_string();
             for (auto i = 1u; i < l.size(); i++)
-                s += "," + l[i].to_string();
+                s += ", " + l[i].to_string();
             s += "]";
             return s;
         }
@@ -105,7 +105,7 @@ struct ParseError {
         NoNewlineAfterValue,
         UnterminatedString,
         UnexpectedCharacter,
-        ExpectedComma,
+        ExpectedRightSquare,
     };
     std::error_condition error;
     std::ptrdiff_t line = -1, col = -1;
@@ -115,18 +115,17 @@ struct ParseError {
 
 /* An error found while validating. Can be ignored. */
 struct Warning {
-    enum class Type {
+    enum Type {
         InvalidKey,
         MissingKey,
         MismatchedTypes,
-    } type;
-    std::string key;
-    conf::Value newval, orig;
+    } type = {};
+    std::string key = {};
+    conf::Value newval = {}, oldval = {};
     std::string message();
 };
 
-/* Error category for ParseError. Meant to be used only for constructing the
- * @error field. */
+/* Error category for ParseError. Used only for constructing the error field. */
 struct ConfErrorCategory : public std::error_category {
     ~ConfErrorCategory() {}
     const char *name() const noexcept { return "conf error"; }

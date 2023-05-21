@@ -16,9 +16,9 @@ namespace conf {
 namespace {
 
 struct Token {
-    enum class Type {
+    enum Type {
         Ident, Int, Float, True, False, String, EqualSign, Newline,
-        LeftSquareBracket, RightSquareBracket, Comma,
+        LeftSquare, RightSquare, Comma,
         Unterminated, InvalidChar, End,
     } type;
     std::string_view text;
@@ -33,9 +33,9 @@ struct Lexer {
 
     explicit Lexer(std::string_view s) : text{s} {}
 
-    char peek() const               { return text[cur]; }
-    char advance()                  { return text[cur++]; }
-    bool at_end() const             { return text.size() == cur; }
+    char peek() const   { return text[cur]; }
+    char advance()      { return text[cur++]; }
+    bool at_end() const { return text.size() == cur; }
 
     auto position_of(Token t) const
     {
@@ -74,11 +74,11 @@ struct Lexer {
         while (string::is_digit(text[cur]))
             advance();
         if (peek() != '.')
-            return make(Token::Type::Int);
+            return make(Token::Int);
         advance();
         while (string::is_digit(text[cur]))
             advance();
-        return make(Token::Type::Float);
+        return make(Token::Float);
     }
 
     Token ident()
@@ -86,9 +86,9 @@ struct Lexer {
         while (is_ident_char(peek()) || string::is_digit(peek()))
             advance();
         auto word = text.substr(start, cur - start);
-        return make(word == "true"  ? Token::Type::True
-                  : word == "false" ? Token::Type::False
-                  :                   Token::Type::Ident);
+        return make(word == "true"  ? Token::True
+                  : word == "false" ? Token::False
+                  :                   Token::Ident);
     }
 
     Token string_token()
@@ -96,9 +96,9 @@ struct Lexer {
         while (peek() != '"' && !at_end())
             advance();
         if (at_end())
-            return make(Token::Type::Unterminated);
+            return make(Token::Unterminated);
         advance();
-        return make(Token::Type::String);
+        return make(Token::String);
     }
 
     Token lex()
@@ -106,17 +106,17 @@ struct Lexer {
         skip();
         start = cur;
         if (at_end())
-            return make(Token::Type::End);
+            return make(Token::End);
         char c = advance();
-        return c == '='    ? make(Token::Type::EqualSign)
-             : c == '\n'   ? make(Token::Type::Newline)
-             : c == '['    ? make(Token::Type::LeftSquareBracket)
-             : c == ']'    ? make(Token::Type::RightSquareBracket)
-             : c == ','    ? make(Token::Type::Comma)
+        return c == '='    ? make(Token::EqualSign)
+             : c == '\n'   ? make(Token::Newline)
+             : c == '['    ? make(Token::LeftSquare)
+             : c == ']'    ? make(Token::RightSquare)
+             : c == ','    ? make(Token::Comma)
              : c == '"'    ? string_token()
              : string::is_digit(c) ? number()
              : is_ident_char(c) ? ident()
-             : make(Token::Type::InvalidChar);
+             : make(Token::InvalidChar);
     }
 };
 
@@ -127,35 +127,35 @@ struct Parser {
 
     explicit Parser(std::string_view s) : lexer{s} {}
 
-    void error(Token t, int err)
+    void error(Token t, ParseError::Type type)
     {
         auto [line, col] = lexer.position_of(t);
         throw ParseError {
-            .error = std::error_condition(static_cast<int>(err), errcat),
+            .error = std::error_condition(type, errcat),
             .line = line, .col = std::ptrdiff_t(col),
             .prev = std::string(prev.text),
-            .cur  = t.type == Token::Type::End ? "end" : std::string(t.text),
+            .cur  = t.type == Token::End ? "end" : std::string(t.text),
         };
     }
 
     void advance()
     {
         prev = cur, cur = lexer.lex();
-        if (cur.type == Token::Type::Unterminated) error(cur, ParseError::UnterminatedString);
-        if (cur.type == Token::Type::InvalidChar)  error(cur, ParseError::UnexpectedCharacter);
+        if (cur.type == Token::Unterminated) error(cur, ParseError::UnterminatedString);
+        if (cur.type == Token::InvalidChar)  error(cur, ParseError::UnexpectedCharacter);
     }
 
-    void consume(Token::Type type, int err) { cur.type == type ? advance() : error(prev, err); }
-    bool match(Token::Type type)            { if (cur.type != type) return false; else { advance(); return true; } }
+    void consume(Token::Type type, ParseError::Type err) { cur.type == type ? advance() : error(cur, err); }
+    bool match(Token::Type type)                         { if (cur.type != type) return false; else { advance(); return true; } }
 
     std::optional<conf::Value> parse_value()
     {
-             if (match(Token::Type::Int))    return conf::Value(string::to_number<  int>(prev.text).value());
-        else if (match(Token::Type::Float))  return conf::Value(string::to_number<float>(prev.text).value());
-        else if (match(Token::Type::String)) return conf::Value(std::string(prev.text.substr(1, prev.text.size() - 2)));
-        else if (match(Token::Type::True)
-              || match(Token::Type::False))  return conf::Value(prev.type == Token::Type::True);
-        else if (match(Token::Type::LeftSquareBracket)) return parse_list();
+             if (match(Token::Int))    return conf::Value(string::to_number<  int>(prev.text).value());
+        else if (match(Token::Float))  return conf::Value(string::to_number<float>(prev.text).value());
+        else if (match(Token::String)) return conf::Value(std::string(prev.text.substr(1, prev.text.size() - 2)));
+        else if (match(Token::True)
+              || match(Token::False))  return conf::Value(prev.type == Token::True);
+        else if (match(Token::LeftSquare)) return parse_list();
         return std::nullopt;
     }
 
@@ -165,8 +165,8 @@ struct Parser {
         do
             if (auto v = parse_value(); v)
                 values.push_back(v.value());
-        while (match(Token::Type::Comma));
-        consume(Token::Type::RightSquareBracket, ParseError::ExpectedComma);
+        while (match(Token::Comma));
+        consume(Token::RightSquare, ParseError::ExpectedRightSquare);
         return conf::Value(std::move(values));
     }
 
@@ -176,20 +176,20 @@ struct Parser {
         advance();
         while (!lexer.at_end()) {
             try {
-                if (!match(Token::Type::Newline)) {
-                    consume(Token::Type::Ident, ParseError::NoIdent);
+                if (!match(Token::Newline)) {
+                    consume(Token::Ident, ParseError::NoIdent);
                     auto ident = prev;
-                    consume(Token::Type::EqualSign, ParseError::NoEqualAfterIdent);
+                    consume(Token::EqualSign, ParseError::NoEqualAfterIdent);
                     auto &pos = data[std::string(ident.text)];
                     if (auto v = parse_value(); v)
                         pos = v.value();
                     else
                         error(prev, ParseError::NoValueAfterEqual);
-                    consume(Token::Type::Newline, ParseError::NoNewlineAfterValue);
+                    consume(Token::Newline, ParseError::NoNewlineAfterValue);
                 }
             } catch (const ParseError &error) {
                 errors.push_back(error);
-                while (cur.type != Token::Type::End && cur.type != Token::Type::Newline)
+                while (cur.type != Token::End && cur.type != Token::Newline)
                     advance();
                 advance();
             }
@@ -213,15 +213,15 @@ std::string ParseError::message()
 std::string Warning::message()
 {
     switch (type) {
-    case Warning::Type::InvalidKey: return "invalid key '" + key + "'";
-    case Warning::Type::MissingKey:
+    case Warning::InvalidKey: return "invalid key '" + key + "'";
+    case Warning::MissingKey:
         return "missing key '" + key + "' (default " + newval.to_string()
              + " will be used)";
-    case Warning::Type::MismatchedTypes:
+    case Warning::MismatchedTypes:
          return "mismatched types for key '" + key
               + "' (expected type '" + std::string(type_to_string(newval.type()))
-              + "', got '" + orig.to_string() + "' of type '"
-              + std::string(type_to_string(orig.type()))
+              + "', got '" + oldval.to_string() + "' of type '"
+              + std::string(type_to_string(oldval.type()))
               + "') (default '" + newval.to_string() + "' will be used)";
     default: return "";
     }
@@ -236,7 +236,7 @@ std::string ConfErrorCategory::message(int n) const
     case ParseError::NoNewlineAfterValue: return "expected newline after value";
     case ParseError::UnterminatedString:  return "unterminated string";
     case ParseError::UnexpectedCharacter: return "unexpected character";
-    case ParseError::ExpectedComma:       return "expected comma";
+    case ParseError::ExpectedRightSquare: return "expected ']'";
     default:                              return "unknown error";
     }
 }
@@ -253,7 +253,7 @@ std::vector<Warning> validate(Data &data, const Data &valid_data)
     // remove invalid keys
     for (auto [k, _] : data) {
         if (auto r = valid_data.find(k); r == valid_data.end()) {
-            ws.push_back({ .type = Warning::Type::InvalidKey, .key = k });
+            ws.push_back({ .type = Warning::InvalidKey, .key = k });
             data.erase(k);
         }
     }
@@ -261,11 +261,11 @@ std::vector<Warning> validate(Data &data, const Data &valid_data)
     for (auto [k, v] : valid_data) {
         auto r = data.find(k);
         if (r == data.end()) {
-            ws.push_back({.type = Warning::Type::MissingKey, .key = k, .newval = v });
+            ws.push_back({ .type = Warning::MissingKey, .key = k, .newval = v });
             data[k] = v;
         } else if (v.type() != r->second.type()) {
-            ws.push_back({ .type = Warning::Type::MismatchedTypes,
-                           .key = k, .newval = v, .orig = r->second });
+            ws.push_back({ .type = Warning::MismatchedTypes,
+                           .key = k, .newval = v, .oldval = r->second });
             data[k] = v;
         }
     }
