@@ -10,21 +10,21 @@ const conf::Data defaults = {
 
 int main(void)
 {
-    auto res = conf::parse_or_create("app.conf", defaults);
+    auto res = conf::parse_or_create("app", defaults);
     if (!res) {
         for (auto err : res.error())
-            fmt::print("{}\n", conf::default_message(err));
+            fmt::print("{}\n", err.message());
         return 1;
     }
-    auto &conf = res.value();
 
+    auto &conf    = res.value();
     auto warnings = conf::validate(conf, defaults);
     for (auto &w : warnings)
-        fmt::print("warning: {}\n", conf::default_message(w));
-    // can also return if warnings.size() > 0
+        fmt::print("warning: {}\n", w.message());
 
     fmt::print("values found in config:\n");
     for (auto [k, v] : conf)
-        fmt::print("{} => {}\n", k, v.to_string());
+        fmt::print("{} : {}\n", k, v.to_string());
+
     return 0;
 }
