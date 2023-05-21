@@ -40,8 +40,11 @@ inline std::string_view type_to_string(conf::Type t)
  * A Value in a configuration file. Can be one of: number (integer), number
  * (floating point), boolean or string.
  */
+struct Value;
+using ValueList = std::vector<Value>;
+
 struct Value {
-    std::variant<int, float, bool, std::string> value;
+    std::variant<int, float, bool, std::string, ValueList> value;
 
     Value() = default;
     explicit Value(bool v)               : value(v) {}
@@ -50,6 +53,7 @@ struct Value {
     explicit Value(const std::string &v) : value(v) {}
     explicit Value(const char *v)        : value(std::string(v)) {}
     explicit Value(char *v)              : value(std::string(v)) {}
+    explicit Value(ValueList &&vs) : value(std::move(vs)) {}
 
     template <typename T> T as() const { return std::get<T>(value); }
     Type type() const { return static_cast<Type>(value.index()); }
@@ -61,6 +65,16 @@ struct Value {
         case 1: return std::to_string(as<float>());
         case 2: return as<bool>() ? "true" : "false";
         case 3: return "\"" + as<std::string>() + "\"";
+        case 4: {
+            auto l = as<ValueList>();
+            std::string s = "[";
+            if (l.size() > 0)
+                s += l[0].to_string();
+            for (auto i = 1u; i < l.size(); i++)
+                s += "," + l[i].to_string();
+            s += "]";
+            return s;
+        }
         default: return "";
         }
     }
@@ -91,6 +105,7 @@ struct ParseError {
         NoNewlineAfterValue,
         UnterminatedString,
         UnexpectedCharacter,
+        ExpectedComma,
     };
     std::error_condition error;
     std::ptrdiff_t line = -1, col = -1;

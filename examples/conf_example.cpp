@@ -5,7 +5,8 @@ const conf::Data defaults = {
     { "foo", conf::Value(1.0f) },
     { "bar", conf::Value("random_string") },
     { "baz", conf::Value(true) },
-    { "fooo", conf::Value(0) }
+    { "fooo", conf::Value(0) },
+    { "barr", conf::Value(conf::ValueList{}) }
 };
 
 int main(void)

@@ -18,6 +18,7 @@ namespace {
 struct Token {
     enum class Type {
         Ident, Int, Float, True, False, String, EqualSign, Newline,
+        LeftSquareBracket, RightSquareBracket, Comma,
         Unterminated, InvalidChar, End,
     } type;
     std::string_view text;
@@ -109,6 +110,9 @@ struct Lexer {
         char c = advance();
         return c == '='    ? make(Token::Type::EqualSign)
              : c == '\n'   ? make(Token::Type::Newline)
+             : c == '['    ? make(Token::Type::LeftSquareBracket)
+             : c == ']'    ? make(Token::Type::RightSquareBracket)
+             : c == ','    ? make(Token::Type::Comma)
              : c == '"'    ? string_token()
              : string::is_digit(c) ? number()
              : is_ident_char(c) ? ident()
@@ -144,6 +148,28 @@ struct Parser {
     void consume(Token::Type type, int err) { cur.type == type ? advance() : error(prev, err); }
     bool match(Token::Type type)            { if (cur.type != type) return false; else { advance(); return true; } }
 
+    std::optional<conf::Value> parse_value()
+    {
+             if (match(Token::Type::Int))    return conf::Value(string::to_number<  int>(prev.text).value());
+        else if (match(Token::Type::Float))  return conf::Value(string::to_number<float>(prev.text).value());
+        else if (match(Token::Type::String)) return conf::Value(std::string(prev.text.substr(1, prev.text.size() - 2)));
+        else if (match(Token::Type::True)
+              || match(Token::Type::False))  return conf::Value(prev.type == Token::Type::True);
+        else if (match(Token::Type::LeftSquareBracket)) return parse_list();
+        return std::nullopt;
+    }
+
+    conf::Value parse_list()
+    {
+        std::vector<conf::Value> values;
+        do
+            if (auto v = parse_value(); v)
+                values.push_back(v.value());
+        while (match(Token::Type::Comma));
+        consume(Token::Type::RightSquareBracket, ParseError::ExpectedComma);
+        return conf::Value(std::move(values));
+    }
+
     ParseResult parse()
     {
         conf::Data data;
@@ -155,12 +181,10 @@ struct Parser {
                     auto ident = prev;
                     consume(Token::Type::EqualSign, ParseError::NoEqualAfterIdent);
                     auto &pos = data[std::string(ident.text)];
-                         if (match(Token::Type::Int))    pos = conf::Value(string::to_number<  int>(prev.text).value());
-                    else if (match(Token::Type::Float))  pos = conf::Value(string::to_number<float>(prev.text).value());
-                    else if (match(Token::Type::String)) pos = conf::Value(std::string(prev.text.substr(1, prev.text.size() - 2)));
-                    else if (match(Token::Type::True)
-                          || match(Token::Type::False))  pos = conf::Value(prev.type == Token::Type::True);
-                    else error(prev, ParseError::NoValueAfterEqual);
+                    if (auto v = parse_value(); v)
+                        pos = v.value();
+                    else
+                        error(prev, ParseError::NoValueAfterEqual);
                     consume(Token::Type::Newline, ParseError::NoNewlineAfterValue);
                 }
             } catch (const ParseError &error) {
@@ -212,6 +236,7 @@ std::string ConfErrorCategory::message(int n) const
     case ParseError::NoNewlineAfterValue: return "expected newline after value";
     case ParseError::UnterminatedString:  return "unterminated string";
     case ParseError::UnexpectedCharacter: return "unexpected character";
+    case ParseError::ExpectedComma:       return "expected comma";
     default:                              return "unknown error";
     }
 }
