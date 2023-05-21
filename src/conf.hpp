@@ -75,81 +75,30 @@ inline bool operator==(const Value &v, const T &t)
     return p != nullptr && *p == t;
 }
 
-/* Types of erros found by the parser. */
-enum class ErrorType {
-    NoIdent,
-    NoEqualAfterIdent,
-    NoValueAfterEqual,
-    NoNewlineAfterValue,
-    UnterminatedString,
-    UnexpectedCharacter,
-};
-
-/* For constructing std::error_conditions. */
-struct ConfErrorCategory : public std::error_category {
-    ~ConfErrorCategory() {}
-    const char *name() const noexcept { return "conf error"; }
-    std::string message(int n) const;
-};
-
-inline ConfErrorCategory errcat;
-
 /*
- * A parse error:
+ * An error found while parsing. If any of these is produced while parsing,
+ * the result should be discarded.
+ * @error: what kind of error. Can also be something external, e.g. not enough
+ *         permissions to write a file, etc.
  * @line, @col: line and column into the file
  * @prev, @cur: tokens affected (might be the same)
- * @error: what kind of error
  */
 struct ParseError {
+    enum Type {
+        NoIdent,
+        NoEqualAfterIdent,
+        NoValueAfterEqual,
+        NoNewlineAfterValue,
+        UnterminatedString,
+        UnexpectedCharacter,
+    };
     std::error_condition error;
-    std::ptrdiff_t line, col;
-    std::string prev, cur;
-    static ParseError make(std::error_code e) {
-        return { .error = e.default_error_condition(),
-                 .line = -1, .col = -1, .prev = "", .cur = "" };
-    }
+    std::ptrdiff_t line = -1, col = -1;
+    std::string prev = "", cur = "";
+    std::string message();
 };
 
-/* A type representing the data of a configuration file. */
-using Data = std::map<std::string, Value>;
-
-/* Result of parsing is either the configuration data or a list of errors. */
-using ParseResult = tl::expected<Data, std::vector<ParseError>>;
-
-/*
- * This function parses a configuration file.
- * @text: the contents of the configuration file.
- * @valid: describes which are valid keys and value types, as well the default
- *         values for each key.
- * @error: a callback function that display an error to the user. It
- *                 takes as a parameter the error message.
- * It returns the data of the configuration, or std::nullopt on parse error.
- */
-ParseResult parse(std::string_view text);
-
-/*
- * Creates a configuration file.
- * @path: the path of the file to create.
- * @conf: the configuration data to write.
- * @error: a callback function that should display an error. It takes as a
- *           parameter the error message.
- */
-std::error_code create(std::filesystem::path path, const Data &conf);
-
-/*
- * Checks if a configuration file exists and:
- *
- *     - Parses the file if it exists;
- *     - Create the file with default values if it doesn't.
- *
- * @path: the path of the file to parse/create;
- * @defaults: default data to write when creating;
- * @error: a callback function that should display an error. It takes as a
- *           parameter the error message.
- */
-ParseResult parse_or_create(std::filesystem::path path, const Data &defaults);
-
-/* A Warning type for the validate() function. */
+/* An error found while validating. Can be ignored. */
 struct Warning {
     enum class Type {
         InvalidKey,
@@ -158,28 +107,69 @@ struct Warning {
     } type;
     std::string key;
     conf::Value newval, orig;
+    std::string message();
 };
 
+/* Error category for ParseError. Meant to be used only for constructing the
+ * @error field. */
+struct ConfErrorCategory : public std::error_category {
+    ~ConfErrorCategory() {}
+    const char *name() const noexcept { return "conf error"; }
+    std::string message(int n) const;
+};
+
+inline ConfErrorCategory errcat;
+
+/* A type representing the data of a configuration file. */
+using Data = std::map<std::string, Value>;
+
+/* Result of parsing is either the configuration data or a list of errors. */
+using ParseResult = tl::expected<Data, std::vector<ParseError>>;
+
 /*
- * Validates configuration data using @valid as a template.
+ * This function parses a configuration file. It returns either the data of
+ * the configuration, or a list of parse errors.
+ * @text: the contents of the configuration file.
+ */
+ParseResult parse(std::string_view text);
+
+/*
+ * Validates configuration data using @valid_data as a template.
  * The function checks for missing keys (keys that are in @valid but not in
  * @data), invalid keys (keys that are in @data but not in @valid) and
  * mismatched types. Invalid keys are deleted, everything else is replaced
  * with a default value.
  * @data: the configuration data to validate.
- * @valid_conf: a template for which keys are valid and which type of values
+ * @valid_data: a template for which keys are valid and which type of values
  *              they should have. Values are taken as default values.
  */
-std::vector<Warning> validate(Data &conf, const Data &valid_conf);
-
-/* Returns the parse error / warning as a string. */
-std::string default_message(const ParseError &e);
-std::string default_message(const Warning &w);
+std::vector<Warning> validate(Data &data, const Data &valid_data);
 
 /*
- * Tries to search for the configuration file on the file system.
- * Returns the path of the filesystem, or std::nullopt if not found.
+ * Creates a configuration file.
+ * @path: the path of the file to create.
+ * @data: the configuration data to write.
  */
-std::optional<std::filesystem::path> find_file(std::string_view name);
+std::error_code create(std::filesystem::path path, const Data &data);
+
+/*
+ * Gets the directory where the configuration file should reside.
+ * The configuration file's path can then be retrieved by concatenating
+ * this path to the file's name.
+ * The directory is always created if absent.
+ * @appname: name of the application, which is used as the name of the
+ * configuration directory.
+ */
+std::filesystem::path getdir(std::string_view appname);
+
+/*
+ * Checks if a configuration file exists and creates the configuration file,
+ * filling it with default values, if it doesn't exist. Otherwise it parses
+ * and validates it using the default values.
+ * @appname: name of the application, which is used as the name of the
+ * configuration directory and as the file name.
+ * @defaults: default data to write when creating;
+ */
+ParseResult parse_or_create(std::string_view appname, const Data &defaults);
 
 } // namespace conf

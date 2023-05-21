@@ -123,7 +123,7 @@ struct Parser {
 
     explicit Parser(std::string_view s) : lexer{s} {}
 
-    void error(Token t, ErrorType err)
+    void error(Token t, int err)
     {
         auto [line, col] = lexer.position_of(t);
         throw ParseError {
@@ -137,12 +137,12 @@ struct Parser {
     void advance()
     {
         prev = cur, cur = lexer.lex();
-        if (cur.type == Token::Type::Unterminated) error(cur, ErrorType::UnterminatedString);
-        if (cur.type == Token::Type::InvalidChar)  error(cur, ErrorType::UnexpectedCharacter);
+        if (cur.type == Token::Type::Unterminated) error(cur, ParseError::UnterminatedString);
+        if (cur.type == Token::Type::InvalidChar)  error(cur, ParseError::UnexpectedCharacter);
     }
 
-    void consume(Token::Type type, ErrorType err) { cur.type == type ? advance() : error(prev, err); }
-    bool match(Token::Type type)                  { if (cur.type != type) return false; else { advance(); return true; } }
+    void consume(Token::Type type, int err) { cur.type == type ? advance() : error(prev, err); }
+    bool match(Token::Type type)            { if (cur.type != type) return false; else { advance(); return true; } }
 
     ParseResult parse()
     {
@@ -151,17 +151,17 @@ struct Parser {
         while (!lexer.at_end()) {
             try {
                 if (!match(Token::Type::Newline)) {
-                    consume(Token::Type::Ident, ErrorType::NoIdent);
+                    consume(Token::Type::Ident, ParseError::NoIdent);
                     auto ident = prev;
-                    consume(Token::Type::EqualSign, ErrorType::NoEqualAfterIdent);
+                    consume(Token::Type::EqualSign, ParseError::NoEqualAfterIdent);
                     auto &pos = data[std::string(ident.text)];
                          if (match(Token::Type::Int))    pos = conf::Value(string::to_number<  int>(prev.text).value());
                     else if (match(Token::Type::Float))  pos = conf::Value(string::to_number<float>(prev.text).value());
                     else if (match(Token::Type::String)) pos = conf::Value(std::string(prev.text.substr(1, prev.text.size() - 2)));
                     else if (match(Token::Type::True)
                           || match(Token::Type::False))  pos = conf::Value(prev.type == Token::Type::True);
-                    else error(prev, ErrorType::NoValueAfterEqual);
-                    consume(Token::Type::Newline, ErrorType::NoNewlineAfterValue);
+                    else error(prev, ParseError::NoValueAfterEqual);
+                    consume(Token::Type::Newline, ParseError::NoNewlineAfterValue);
                 }
             } catch (const ParseError &error) {
                 errors.push_back(error);
@@ -178,16 +178,41 @@ struct Parser {
 
 } // namespace
 
+std::string ParseError::message()
+{
+    return error.category() != conf::errcat
+        ? "error: " + error.message()
+        : std::to_string(line) + ":" + std::to_string(col)
+        + ": parse error: " + error.message();
+}
+
+std::string Warning::message()
+{
+    switch (type) {
+    case Warning::Type::InvalidKey: return "invalid key '" + key + "'";
+    case Warning::Type::MissingKey:
+        return "missing key '" + key + "' (default " + newval.to_string()
+             + " will be used)";
+    case Warning::Type::MismatchedTypes:
+         return "mismatched types for key '" + key
+              + "' (expected type '" + std::string(type_to_string(newval.type()))
+              + "', got '" + orig.to_string() + "' of type '"
+              + std::string(type_to_string(orig.type()))
+              + "') (default '" + newval.to_string() + "' will be used)";
+    default: return "";
+    }
+}
+
 std::string ConfErrorCategory::message(int n) const
 {
-    switch (static_cast<ErrorType>(n)) {
-    case ErrorType::NoIdent:                return "expected identifier";
-    case ErrorType::NoEqualAfterIdent:      return "expected '=' after identifier";
-    case ErrorType::NoValueAfterEqual:      return "expected value after '='";
-    case ErrorType::NoNewlineAfterValue:    return "expected newline after value";
-    case ErrorType::UnterminatedString:     return "unterminated string";
-    case ErrorType::UnexpectedCharacter:    return "unexpected character";
-    default:                                return "unknown error";
+    switch (n) {
+    case ParseError::NoIdent:             return "expected identifier";
+    case ParseError::NoEqualAfterIdent:   return "expected '=' after identifier";
+    case ParseError::NoValueAfterEqual:   return "expected value after '='";
+    case ParseError::NoNewlineAfterValue: return "expected newline after value";
+    case ParseError::UnterminatedString:  return "unterminated string";
+    case ParseError::UnexpectedCharacter: return "unexpected character";
+    default:                              return "unknown error";
     }
 }
 
@@ -197,92 +222,62 @@ ParseResult parse(std::string_view text)
     return parser.parse();
 }
 
-std::error_code create(fs::path path, const Data &conf)
-{
-    auto file = io::File::open(path, io::Access::Write);
-    if (!file)
-        return file.error();
-    auto width = std::max_element(conf.begin(), conf.end(), [](const auto &a, const auto &b) {
-        return a.first.size() < b.first.size();
-    })->first.size();
-    for (auto [k, v] : conf)
-        fmt::print(file.value().data(), "{:{}} = {}\n", k, width, v.to_string());
-    return std::error_code{};
-}
-
-ParseResult parse_or_create(fs::path path, const Data &defaults)
-{
-    if (auto text = io::read_file(path); text)
-        return parse(text.value());
-    if (auto err = create(path, defaults); err)
-        return tl::unexpected(std::vector{ParseError::make(err)});
-    return defaults;
-}
-
-std::vector<Warning> validate(Data &conf, const Data &valid_conf)
+std::vector<Warning> validate(Data &data, const Data &valid_data)
 {
     std::vector<Warning> ws;
     // remove invalid keys
-    for (auto [k, _] : conf) {
-        if (auto r = valid_conf.find(k); r == valid_conf.end()) {
+    for (auto [k, _] : data) {
+        if (auto r = valid_data.find(k); r == valid_data.end()) {
             ws.push_back({ .type = Warning::Type::InvalidKey, .key = k });
-            conf.erase(k);
+            data.erase(k);
         }
     }
     // find missing keys and type match existing ones
-    for (auto [k, v] : valid_conf) {
-        auto r = conf.find(k);
-        if (r == conf.end()) {
-            ws.push_back({.type = Warning::Type::MissingKey,
-                          .key = k, .newval = v });
-            conf[k] = v;
+    for (auto [k, v] : valid_data) {
+        auto r = data.find(k);
+        if (r == data.end()) {
+            ws.push_back({.type = Warning::Type::MissingKey, .key = k, .newval = v });
+            data[k] = v;
         } else if (v.type() != r->second.type()) {
             ws.push_back({ .type = Warning::Type::MismatchedTypes,
-                           .key  = k, .newval = v, .orig = r->second });
-            conf[k] = v;
+                           .key = k, .newval = v, .orig = r->second });
+            data[k] = v;
         }
     }
     return ws;
 }
 
-std::string default_message(const ParseError &e)
+std::error_code create(std::filesystem::path path, const Data &data)
 {
-    return e.error.category() != conf::errcat
-        ? "error: " + e.error.message()
-        : ""s + std::to_string(e.line) + ":" + std::to_string(e.col)
-        + ": parse error: " + e.error.message();
+    auto file = io::File::open(path, io::Access::Write);
+    if (!file)
+        return file.error();
+    auto width = std::max_element(data.begin(), data.end(), [](const auto &a, const auto &b) {
+        return a.first.size() < b.first.size();
+    })->first.size();
+    for (auto [k, v] : data)
+        fmt::print(file.value().data(), "{:{}} = {}\n", k, width, v.to_string());
+    return std::error_code{};
 }
 
-std::string default_message(const Warning &w)
+std::filesystem::path getdir(std::string_view appname)
 {
-    switch (w.type) {
-    case Warning::Type::InvalidKey: return "invalid key '" + w.key + "'";
-    case Warning::Type::MissingKey:
-        return "missing key '" + w.key + "' (default " + w.newval.to_string()
-             + " will be used)";
-    case Warning::Type::MismatchedTypes:
-         return "mismatched types for key '" + w.key
-              + "' (expected type '" + std::string(type_to_string(w.newval.type()))
-              + "', got '" + w.orig.to_string() + "' of type '"
-              + std::string(type_to_string(w.orig.type()))
-              + "') (default '" + w.newval.to_string() + "' will be used)";
-    default: return "";
-    }
+    auto config = io::directory::config();
+    auto appdir = fs::exists(config) ? config / appname
+                                     : io::directory::home() / ("." + std::string(appname));
+    if (!fs::exists(appdir))
+        fs::create_directory(appdir);
+    return appdir;
 }
 
-std::optional<fs::path> find_file(std::string_view name)
+ParseResult parse_or_create(std::string_view appname, const Data &defaults)
 {
-    auto home = io::user_home();
-    auto paths = std::array {
-        home / ".config" / name / name,
-        home / fmt::format(".{}", name) / fmt::format("{}.conf", name),
-        home / fmt::format("{}.conf", name)
-    };
-    for (const auto &path : paths) {
-        if (fs::exists(path))
-            return path;
-    }
-    return std::nullopt;
+    auto file_path = getdir(appname) / (std::string(appname) + ".conf");
+    if (auto text = io::read_file(file_path); text)
+        return parse(text.value());
+    if (auto err = create(file_path, defaults); err)
+        return tl::unexpected(std::vector{ ParseError { .error = err.default_error_condition() } });
+    return defaults;
 }
 
 } // namespace conf
