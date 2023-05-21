@@ -6,6 +6,10 @@ main_files	:=
 test_files	:= array_test.cpp bits_test.cpp callcommand_test.cpp \
 			   cmdline_test.cpp conf_test.cpp io_test.cpp string_test.cpp
 test_name	:= test
+conf_example_files := conf_example.cpp
+conf_example_name  := conf_example
+io_example_files 	:= io_example.cpp
+io_example_name		:= io_example
 platform 	:= linux
 buildtype 	:= debug
 CC 			:= gcc
@@ -17,7 +21,7 @@ LDLIBS 		:= -lfmt
 libs_test 	:= $(shell pkg-config --libs catch2-with-main)
 PREFIX		:= /usr/local
 DESTDIR		:=
-VPATH 		:= src:test
+VPATH 		:= src:test:examples
 
 outdir := debug
 ifeq ($(buildtype),debug)
@@ -36,14 +40,20 @@ else
 	$(error error: invalid value for buildtype)
 endif
 
+flags_deps 	= -MMD -MP -MF $(@:.o=.d)
 objs 		:= $(patsubst %,$(outdir)/%.o,$(files))
 objs_main	:= $(patsubst %,$(outdir)/%.o,$(main_files))
 objs_test 	:= $(patsubst %,$(outdir)/%.o,$(test_files))
-flags_deps 	= -MMD -MP -MF $(@:.o=.d)
+objs_conf_example	:= $(patsubst %,$(outdir)/%.o,$(conf_example_files))
+objs_io_example		:= $(patsubst %,$(outdir)/%.o,$(io_example_files))
 
 all: $(outdir)/$(project)
 
 test: $(outdir)/$(test_name)
+
+conf_example: $(outdir)/$(conf_example_name)
+
+io_example: $(outdir)/$(io_example_name)
 
 install:
 
@@ -57,6 +67,12 @@ $(outdir)/$(project): $(outdir) $(objs) $(objs_main)
 
 $(outdir)/$(test_name): $(outdir) $(objs) $(objs_test)
 	$(CXX) $(objs) $(objs_test) -o $@ $(LDLIBS) $(libs_test)
+
+$(outdir)/$(conf_example_name): $(outdir) $(objs) $(objs_conf_example)
+	$(CXX) $(objs) $(objs_conf_example) -o $@ $(LDLIBS)
+
+$(outdir)/$(io_example_name): $(outdir) $(objs) $(objs_io_example)
+	$(CXX) $(objs) $(objs_io_example) -o $@ $(LDLIBS)
 
 $(outdir):
 	mkdir -p $(outdir)
