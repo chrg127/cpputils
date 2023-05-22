@@ -23,15 +23,16 @@
 
 namespace conf {
 
-enum class Type { Int, Float, Bool, String };
+enum class Type { Int, Float, Bool, String, List };
 
-inline std::string_view type_to_string(conf::Type t)
+inline std::string type_to_string(conf::Type t)
 {
     switch (t) {
     case conf::Type::Int:    return "int";
     case conf::Type::Float:  return "float";
     case conf::Type::Bool:   return "bool";
     case conf::Type::String: return "string";
+    case conf::Type::List:   return "list";
     default: return "";
     }
 }
@@ -97,7 +98,7 @@ inline bool operator==(const Value &v, const T &t)
  * @line, @col: line and column into the file
  * @prev, @cur: tokens affected (might be the same)
  */
-struct ParseError {
+struct Error {
     enum Type {
         NoIdent,
         NoEqualAfterIdent,
@@ -109,39 +110,22 @@ struct ParseError {
         InvalidKey,
         MissingKey,
         MismatchedTypes,
+        External,
     };
-    std::error_condition error;
-    std::ptrdiff_t line = -1, col = -1;
+    Type type = {};
     std::string prev = "", cur = "";
-    std::string message();
-};
-
-/* An error found while validating. Can be ignored. */
-struct Warning {
-    enum Type {
-        InvalidKey,
-        MissingKey,
-        MismatchedTypes,
-    } type = {};
+    std::ptrdiff_t line = -1, col = -1;
     std::string key = {};
-    conf::Value newval = {}, oldval = {};
+    conf::Value value = {}, def = {};
+    std::error_code external_error = {};
     std::string message();
 };
-
-/* Error category for ParseError. Used only for constructing the error field. */
-struct ConfErrorCategory : public std::error_category {
-    ~ConfErrorCategory() {}
-    const char *name() const noexcept { return "conf error"; }
-    std::string message(int n) const;
-};
-
-inline ConfErrorCategory errcat;
 
 /* A type representing the data of a configuration file. */
 using Data = std::map<std::string, Value>;
 
 /* Result of parsing is either the configuration data or a list of errors. */
-using ParseResult = std::pair<Data, std::vector<ParseError>>;
+using ParseResult = std::pair<Data, std::vector<Error>>;
 
 /*
  * This function parses a configuration file. It returns the data of
@@ -153,11 +137,11 @@ using ParseResult = std::pair<Data, std::vector<ParseError>>;
 ParseResult parse(std::string_view text, const Data &defaults);
 
 /*
- * Creates a configuration file.
- * @path: the path of the file to create.
+ * Writes or creates a configuration file.
+ * @path: the path of the file to write.
  * @data: the configuration data to write.
  */
-std::error_code create(std::filesystem::path path, const Data &data);
+std::error_code write(std::filesystem::path path, const Data &data);
 
 /*
  * Gets the directory where the configuration file should reside.
