@@ -90,13 +90,24 @@ inline bool operator==(const Value &v, const T &t)
     return p != nullptr && *p == t;
 }
 
+namespace literals {
+
+inline Value operator"" _v(unsigned long long x)  { return conf::Value{int(x)}; }
+inline Value operator"" _v(long double x)         { return conf::Value{float(x)}; }
+inline Value operator"" _v(const char *x, std::size_t n) { return conf::Value{std::string(x, n)}; }
+
+} // namespace literals
+
 /*
- * An error found while parsing. If any of these is produced while parsing,
- * the result should be discarded.
- * @error: what kind of error. Can also be something external, e.g. not enough
- *         permissions to write a file, etc.
+ * An error found while parsing.
+ * @type: what kind of error.
+ * @prev, @cur: tokens affected
  * @line, @col: line and column into the file
- * @prev, @cur: tokens affected (might be the same)
+ * @key, @value, @def: affected key, along with value found and
+ * default value, if there are any.
+ * @external_error: if this error instance is from an external
+ * source, instead of the parsing result, only this field will
+ * be filled.
  */
 struct Error {
     enum Type {
@@ -123,9 +134,16 @@ struct Error {
 
 /* A type representing the data of a configuration file. */
 using Data = std::map<std::string, Value>;
-
-/* Result of parsing is either the configuration data or a list of errors. */
 using ParseResult = std::pair<Data, std::vector<Error>>;
+
+namespace flags {
+
+enum Flags {
+    None = 0x0,
+    AcceptAnyKey = 0x1,
+};
+
+} // namespace flags
 
 /*
  * This function parses a configuration file. It returns the data of
@@ -134,7 +152,8 @@ using ParseResult = std::pair<Data, std::vector<Error>>;
  * @defaults: default keys and values. Also used to type check values
  * and find missing or invalid keys.
  */
-ParseResult parse(std::string_view text, const Data &defaults);
+ParseResult parse(std::string_view text, const Data &defaults,
+    flags::Flags flags = flags::None);
 
 /*
  * Writes or creates a configuration file. The second function finds the right
@@ -163,6 +182,7 @@ std::filesystem::path getdir(std::string_view appname);
  * configuration directory and as the file name.
  * @defaults: default data to write when creating;
  */
-ParseResult parse_or_create(std::string_view appname, const Data &defaults);
+ParseResult parse_or_create(std::string_view appname, const Data &defaults,
+    flags::Flags flags = flags::None);
 
 } // namespace conf

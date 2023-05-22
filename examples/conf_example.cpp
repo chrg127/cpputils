@@ -1,17 +1,19 @@
 #include "../src/conf.hpp"
 #include <fmt/core.h>
 
+using namespace conf::literals;
+
 const conf::Data defaults = {
-    { "foo", conf::Value(1.0f) },
-    { "bar", conf::Value("random_string") },
+    { "foo", 1.0_v },
+    { "bar", "random_string"_v },
     { "baz", conf::Value(true) },
-    { "fooo", conf::Value(0) },
-    { "barr", conf::Value(conf::ValueList{}) }
+    { "fooo", 0_v },
+    { "barr", conf::Value(conf::ValueList{ 1_v, 2_v, 3_v }) }
 };
 
 int main(void)
 {
-    auto [data, errors] = conf::parse_or_create("app", defaults);
+    auto [data, errors] = conf::parse_or_create("app", defaults, conf::flags::AcceptAnyKey);
     for (auto err : errors)
         fmt::print("{}\n", err.message());
 

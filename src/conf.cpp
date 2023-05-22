@@ -125,8 +125,11 @@ struct Parser {
     const Data &defaults;
     Token cur, prev;
     std::vector<Error> errors;
+    flags::Flags flags;
 
-    explicit Parser(std::string_view s, const Data &defaults) : lexer{s}, defaults{defaults} {}
+    explicit Parser(std::string_view s, const Data &defaults, flags::Flags flags)
+        : lexer{s}, defaults{defaults}, flags{flags}
+    {}
 
     void error(Token t, Error::Type type, std::string key = {}, conf::Value defvalue = {}, conf::Value value = {})
     {
@@ -188,7 +191,7 @@ struct Parser {
                     consume(Token::Ident, Error::NoIdent);
                     auto ident = std::string(prev.text);
                     auto it = defaults.find(ident);
-                    if (it == defaults.end())
+                    if (it == defaults.end() && !(flags & flags::AcceptAnyKey))
                         error(prev, Error::InvalidKey);
                     auto default_value = it != defaults.end() ? it->second : conf::Value{};
                     auto &pos = data[ident];
@@ -226,7 +229,7 @@ std::string Error::message()
 {
     if (external_error != std::error_code{})
         return "error: " + external_error.message();
-    auto l = [&] { return std::to_string(line) + ":" + std::to_string(col) + ": parse error: "; };
+    auto l = [&] { return std::to_string(line) + ":" + std::to_string(col) + ": error: "; };
     auto n = [&] { return "\n   note: using default value '" + def.to_string() + "' for key '" + key + "'"; };
     switch (type) {
     case Error::NoIdent:               return l() + "expected identifier";
@@ -237,7 +240,7 @@ std::string Error::message()
     case Error::UnexpectedCharacter:   return l() + "unexpected character '" + cur + "'";
     case Error::ExpectedRightSquare:   return l() + "expected ']' after '" + prev + "'";
     case Error::InvalidKey:            return l() + "invalid key '" + prev + "'";
-    case Error::MissingKey:            return "parse error: missing key '" + key + "'" + n();
+    case Error::MissingKey:            return "error: missing key '" + key + "'" + n();
     case Error::MismatchedTypes:       return l() + "mismatched types for key '" + key + "': expected type '"
                                                  + type_to_string(def.type()) + "', got value '" + value.to_string()
                                                  + "' of type '" + type_to_string(value.type()) + "'" + n();
@@ -246,9 +249,9 @@ std::string Error::message()
     }
 }
 
-ParseResult parse(std::string_view text, const Data &defaults)
+ParseResult parse(std::string_view text, const Data &defaults, flags::Flags flags)
 {
-    Parser parser{text, defaults};
+    Parser parser{text, defaults, flags};
     return parser.parse();
 }
 
@@ -280,11 +283,11 @@ std::filesystem::path getdir(std::string_view appname)
     return appdir;
 }
 
-ParseResult parse_or_create(std::string_view appname, const Data &defaults)
+ParseResult parse_or_create(std::string_view appname, const Data &defaults, flags::Flags flags)
 {
     auto file_path = getdir(appname) / (std::string(appname) + ".conf");
     if (auto text = io::read_file(file_path); text)
-        return parse(text.value(), defaults);
+        return parse(text.value(), defaults, flags);
     auto err = write(appname, defaults);
     return std::make_pair(defaults, std::vector{ Error { .type = Error::External, .external_error = err } });
 }
