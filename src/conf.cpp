@@ -1,9 +1,3 @@
-#include <cstdint>
-#include <cstddef>
-#include <vector>
-#include <charconv>
-#include <filesystem>
-#include <fmt/core.h>
 #include "conf.hpp"
 #include "io.hpp"
 #include "string.hpp"
@@ -264,32 +258,41 @@ std::error_code write_to(std::filesystem::path path, const Data &data)
         return a.first.size() < b.first.size();
     })->first.size();
     for (auto [k, v] : data)
-        fmt::print(file.value().data(), "{:{}} = {}\n", k, width, v.to_string());
+        fprintf(file.value().data(), "%.*s = %s\n", int(width), k.c_str(), v.to_string().c_str());
     return std::error_code{};
 }
 
 std::error_code write(std::string_view appname, const Data &data)
 {
-    return write_to(getdir(appname) / (std::string(appname) + ".conf"), data);
+    auto dir = getdir(appname);
+    if (!dir)
+        return dir.error();
+    return write_to(dir.value() / (std::string(appname) + ".conf"), data);
 }
 
-std::filesystem::path getdir(std::string_view appname)
+tl::expected<std::filesystem::path, std::error_code> getdir(std::string_view appname)
 {
     auto config = io::directory::config();
     auto appdir = fs::exists(config) ? config / appname
                                      : io::directory::home() / ("." + std::string(appname));
-    if (!fs::exists(appdir))
-        fs::create_directory(appdir);
+    if (!fs::exists(appdir)) {
+        std::error_code ec;
+        if (!fs::create_directory(appdir), ec)
+            return tl::unexpected(ec);
+    }
     return appdir;
 }
 
 ParseResult parse_or_create(std::string_view appname, const Data &defaults, flags::Flags flags)
 {
-    auto file_path = getdir(appname) / (std::string(appname) + ".conf");
+    auto dir = getdir(appname);
+    if (!dir)
+        return std::make_pair(defaults, std::vector{ Error { .type = Error::External, .external_error = dir.error() } });
+    auto file_path = dir.value() / (std::string(appname) + ".conf");
     if (auto text = io::read_file(file_path); text)
         return parse(text.value(), defaults, flags);
-    auto err = write(appname, defaults);
-    return std::make_pair(defaults, std::vector{ Error { .type = Error::External, .external_error = err } });
+    auto err = write_to(file_path, defaults);
+    return std::make_pair(defaults, err == std::error_code{} ? std::vector<Error>{} : std::vector{ Error { .type = Error::External, .external_error = err } });
 }
 
 } // namespace conf

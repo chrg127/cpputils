@@ -10,15 +10,13 @@
 
 #pragma once
 
-#include <cstdio>
 #include <string>
 #include <string_view>
 #include <map>
 #include <variant>
-#include <optional>
-#include <functional>
 #include <filesystem>
 #include <system_error>
+#include <vector>
 #include <expected.hpp>
 
 namespace conf {
@@ -136,6 +134,11 @@ struct Error {
 using Data = std::map<std::string, Value>;
 using ParseResult = std::pair<Data, std::vector<Error>>;
 
+/*
+ * Flags used by parse to alter some of its inner workings.
+ * @AcceptAnyKey: This flags will make parse() accept any key that
+ * is not in the default values passed.
+ */
 namespace flags {
 
 enum Flags {
@@ -151,6 +154,7 @@ enum Flags {
  * @text: the contents of the configuration file.
  * @defaults: default keys and values. Also used to type check values
  * and find missing or invalid keys.
+ * @flags: see above.
  */
 ParseResult parse(std::string_view text, const Data &defaults,
     flags::Flags flags = flags::None);
@@ -168,19 +172,21 @@ std::error_code write(std::string_view appname, const Data &data);
  * Gets the directory where the configuration file should reside.
  * The configuration file's path can then be retrieved by concatenating
  * this path to the file's name.
- * The directory is always created if absent.
+ * The directory is always created if absent. An error code is returned
+ * if failing to create a directory.
  * @appname: name of the application, which is used as the name of the
  * configuration directory.
  */
-std::filesystem::path getdir(std::string_view appname);
+tl::expected<std::filesystem::path, std::error_code>
+getdir(std::string_view appname);
 
 /*
- * Checks if a configuration file exists and creates the configuration file,
- * filling it with default values, if it doesn't exist. Otherwise it parses
- * it using the default values.
+ * Checks if a configuration file exists and, if it doesn't, creates it and
+ * fills it with default values. Otherwise the function parses it.
  * @appname: name of the application, which is used as the name of the
  * configuration directory and as the file name.
  * @defaults: default data to write when creating;
+ * @flags: see above.
  */
 ParseResult parse_or_create(std::string_view appname, const Data &defaults,
     flags::Flags flags = flags::None);
