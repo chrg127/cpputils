@@ -137,11 +137,13 @@ using ParseResult = std::pair<Data, std::vector<Error>>;
 ParseResult parse(std::string_view text, const Data &defaults);
 
 /*
- * Writes or creates a configuration file.
+ * Writes or creates a configuration file. The second function finds the right
+ * path for you.
  * @path: the path of the file to write.
  * @data: the configuration data to write.
  */
-std::error_code write(std::filesystem::path path, const Data &data);
+std::error_code write_to(std::filesystem::path path, const Data &data);
+std::error_code write(std::string_view appname, const Data &data);
 
 /*
  * Gets the directory where the configuration file should reside.

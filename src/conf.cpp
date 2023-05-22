@@ -252,7 +252,7 @@ ParseResult parse(std::string_view text, const Data &defaults)
     return parser.parse();
 }
 
-std::error_code write(std::filesystem::path path, const Data &data)
+std::error_code write_to(std::filesystem::path path, const Data &data)
 {
     auto file = io::File::open(path, io::Access::Write);
     if (!file)
@@ -263,6 +263,11 @@ std::error_code write(std::filesystem::path path, const Data &data)
     for (auto [k, v] : data)
         fmt::print(file.value().data(), "{:{}} = {}\n", k, width, v.to_string());
     return std::error_code{};
+}
+
+std::error_code write(std::string_view appname, const Data &data)
+{
+    return write_to(getdir(appname) / (std::string(appname) + ".conf"), data);
 }
 
 std::filesystem::path getdir(std::string_view appname)
@@ -280,7 +285,7 @@ ParseResult parse_or_create(std::string_view appname, const Data &defaults)
     auto file_path = getdir(appname) / (std::string(appname) + ".conf");
     if (auto text = io::read_file(file_path); text)
         return parse(text.value(), defaults);
-    auto err = write(file_path, defaults);
+    auto err = write(appname, defaults);
     return std::make_pair(defaults, std::vector{ Error { .type = Error::External, .external_error = err } });
 }
 

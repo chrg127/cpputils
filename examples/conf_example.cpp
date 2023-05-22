@@ -19,5 +19,6 @@ int main(void)
     for (auto [k, v] : data)
         fmt::print("{} : {}\n", k, v.to_string());
 
+    conf::write("app", data);
     return 0;
 }
