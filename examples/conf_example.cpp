@@ -11,20 +11,12 @@ const conf::Data defaults = {
 
 int main(void)
 {
-    auto res = conf::parse_or_create("app", defaults);
-    if (!res) {
-        for (auto err : res.error())
-            fmt::print("{}\n", err.message());
-        return 1;
-    }
-
-    auto &conf    = res.value();
-    auto warnings = conf::validate(conf, defaults);
-    for (auto &w : warnings)
-        fmt::print("warning: {}\n", w.message());
+    auto [data, errors] = conf::parse_or_create("app", defaults);
+    for (auto err : errors)
+        fmt::print("{}\n", err.message());
 
     fmt::print("values found in config:\n");
-    for (auto [k, v] : conf)
+    for (auto [k, v] : data)
         fmt::print("{} : {}\n", k, v.to_string());
 
     return 0;

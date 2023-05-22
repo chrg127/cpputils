@@ -106,6 +106,9 @@ struct ParseError {
         UnterminatedString,
         UnexpectedCharacter,
         ExpectedRightSquare,
+        InvalidKey,
+        MissingKey,
+        MismatchedTypes,
     };
     std::error_condition error;
     std::ptrdiff_t line = -1, col = -1;
@@ -138,26 +141,16 @@ inline ConfErrorCategory errcat;
 using Data = std::map<std::string, Value>;
 
 /* Result of parsing is either the configuration data or a list of errors. */
-using ParseResult = tl::expected<Data, std::vector<ParseError>>;
+using ParseResult = std::pair<Data, std::vector<ParseError>>;
 
 /*
- * This function parses a configuration file. It returns either the data of
- * the configuration, or a list of parse errors.
+ * This function parses a configuration file. It returns the data of
+ * the configuration and a list of parse errors.
  * @text: the contents of the configuration file.
+ * @defaults: default keys and values. Also used to type check values
+ * and find missing or invalid keys.
  */
-ParseResult parse(std::string_view text);
-
-/*
- * Validates configuration data using @valid_data as a template.
- * The function checks for missing keys (keys that are in @valid but not in
- * @data), invalid keys (keys that are in @data but not in @valid) and
- * mismatched types. Invalid keys are deleted, everything else is replaced
- * with a default value.
- * @data: the configuration data to validate.
- * @valid_data: a template for which keys are valid and which type of values
- *              they should have. Values are taken as default values.
- */
-std::vector<Warning> validate(Data &data, const Data &valid_data);
+ParseResult parse(std::string_view text, const Data &defaults);
 
 /*
  * Creates a configuration file.
@@ -179,7 +172,7 @@ std::filesystem::path getdir(std::string_view appname);
 /*
  * Checks if a configuration file exists and creates the configuration file,
  * filling it with default values, if it doesn't exist. Otherwise it parses
- * and validates it using the default values.
+ * it using the default values.
  * @appname: name of the application, which is used as the name of the
  * configuration directory and as the file name.
  * @defaults: default data to write when creating;

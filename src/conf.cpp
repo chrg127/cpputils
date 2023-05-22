@@ -122,10 +122,11 @@ struct Lexer {
 
 struct Parser {
     Lexer lexer;
+    const Data &defaults;
     Token cur, prev;
     std::vector<ParseError> errors;
 
-    explicit Parser(std::string_view s) : lexer{s} {}
+    explicit Parser(std::string_view s, const Data &defaults) : lexer{s}, defaults{defaults} {}
 
     void error(Token t, ParseError::Type type)
     {
@@ -179,12 +180,19 @@ struct Parser {
                 if (!match(Token::Newline)) {
                     consume(Token::Ident, ParseError::NoIdent);
                     auto ident = prev;
-                    consume(Token::EqualSign, ParseError::NoEqualAfterIdent);
+                    auto it = defaults.find(std::string(ident.text));
+                    if (it == defaults.end())
+                        error(ident, ParseError::InvalidKey);
                     auto &pos = data[std::string(ident.text)];
-                    if (auto v = parse_value(); v)
-                        pos = v.value();
-                    else
+                    pos = it != defaults.end() ? it->second : conf::Value{};
+                    consume(Token::EqualSign, ParseError::NoEqualAfterIdent);
+                    auto v = parse_value();
+                    if (!v)
                         error(prev, ParseError::NoValueAfterEqual);
+                    else if (v.value().type() != it->second.type())
+                        error(prev, ParseError::MismatchedTypes);
+                    else
+                        pos = v.value();
                     consume(Token::Newline, ParseError::NoNewlineAfterValue);
                 }
             } catch (const ParseError &error) {
@@ -194,9 +202,13 @@ struct Parser {
                 advance();
             }
         }
-        if (!errors.empty())
-            return tl::unexpected(errors);
-        return data;
+        for (auto [k, v] : defaults) {
+            if (auto r = data.find(k); r == data.end()) {
+                data[k] = v;
+                errors.push_back({ .error = std::error_condition(ParseError::MissingKey, errcat) });
+            }
+        }
+        return std::make_pair(data, errors);
     }
 };
 
@@ -237,39 +249,17 @@ std::string ConfErrorCategory::message(int n) const
     case ParseError::UnterminatedString:  return "unterminated string";
     case ParseError::UnexpectedCharacter: return "unexpected character";
     case ParseError::ExpectedRightSquare: return "expected ']'";
+    case ParseError::InvalidKey:          return "invalid key";
+    case ParseError::MissingKey:          return "missing key";
+    case ParseError::MismatchedTypes:     return "mismatched types";
     default:                              return "unknown error";
     }
 }
 
-ParseResult parse(std::string_view text)
+ParseResult parse(std::string_view text, const Data &defaults)
 {
-    Parser parser{text};
+    Parser parser{text, defaults};
     return parser.parse();
-}
-
-std::vector<Warning> validate(Data &data, const Data &valid_data)
-{
-    std::vector<Warning> ws;
-    // remove invalid keys
-    for (auto [k, _] : data) {
-        if (auto r = valid_data.find(k); r == valid_data.end()) {
-            ws.push_back({ .type = Warning::InvalidKey, .key = k });
-            data.erase(k);
-        }
-    }
-    // find missing keys and type match existing ones
-    for (auto [k, v] : valid_data) {
-        auto r = data.find(k);
-        if (r == data.end()) {
-            ws.push_back({ .type = Warning::MissingKey, .key = k, .newval = v });
-            data[k] = v;
-        } else if (v.type() != r->second.type()) {
-            ws.push_back({ .type = Warning::MismatchedTypes,
-                           .key = k, .newval = v, .oldval = r->second });
-            data[k] = v;
-        }
-    }
-    return ws;
 }
 
 std::error_code create(std::filesystem::path path, const Data &data)
@@ -299,10 +289,9 @@ ParseResult parse_or_create(std::string_view appname, const Data &defaults)
 {
     auto file_path = getdir(appname) / (std::string(appname) + ".conf");
     if (auto text = io::read_file(file_path); text)
-        return parse(text.value());
-    if (auto err = create(file_path, defaults); err)
-        return tl::unexpected(std::vector{ ParseError { .error = err.default_error_condition() } });
-    return defaults;
+        return parse(text.value(), defaults);
+    auto err = create(file_path, defaults);
+    return std::make_pair(defaults, std::vector{ ParseError { .error = err.default_error_condition() } });
 }
 
 } // namespace conf
