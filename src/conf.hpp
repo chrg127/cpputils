@@ -18,6 +18,7 @@
 #include <system_error>
 #include <vector>
 #include <expected.hpp>
+#include "flags.hpp"
 
 namespace conf {
 
@@ -136,18 +137,11 @@ using Data = std::map<std::string, Value>;
 using ParseResult = std::pair<Data, std::vector<Error>>;
 
 /*
- * Flags used by parse to alter some of its inner workings.
+ * Use these flags to control how parse() behaves.
  * @AcceptAnyKey: This flags will make parse() accept any key that
  * is not in the default values passed.
  */
-namespace flags {
-
-enum Flags {
-    None = 0x0,
-    AcceptAnyKey = 0x1,
-};
-
-} // namespace flags
+enum ParseFlags { AcceptAnyKey };
 
 /*
  * This function parses a configuration file. It returns the data of
@@ -158,7 +152,7 @@ enum Flags {
  * @flags: see above.
  */
 ParseResult parse(std::string_view text, const Data &defaults,
-    flags::Flags flags = flags::None);
+    Flags<ParseFlags> flags = {});
 
 /*
  * Writes or creates a configuration file. The second function finds the right
@@ -190,6 +184,6 @@ getdir(std::string_view appname);
  * @flags: see above.
  */
 ParseResult parse_or_create(std::string_view appname, const Data &defaults,
-    flags::Flags flags = flags::None);
+    Flags<ParseFlags> flags = {});
 
 } // namespace conf

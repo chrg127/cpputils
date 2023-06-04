@@ -119,9 +119,9 @@ struct Parser {
     const Data &defaults;
     Token cur, prev;
     std::vector<Error> errors;
-    flags::Flags flags;
+    Flags<ParseFlags> flags;
 
-    explicit Parser(std::string_view s, const Data &defaults, flags::Flags flags)
+    explicit Parser(std::string_view s, const Data &defaults, Flags<ParseFlags> flags)
         : lexer{s}, defaults{defaults}, flags{flags}
     {}
 
@@ -194,7 +194,7 @@ struct Parser {
                 consume(Token::Ident, Error::NoIdent);
                 auto ident = std::string(prev.text);
                 auto it = defaults.find(ident);
-                if (it == defaults.end() && !(flags & flags::AcceptAnyKey))
+                if (it == defaults.end() && !flags.contains(AcceptAnyKey))
                     error(prev, Error::InvalidKey);
                 auto defval = it != defaults.end() ? it->second : Value{};
                 auto &pos = data[ident];
@@ -251,7 +251,7 @@ std::string Error::message()
     }
 }
 
-ParseResult parse(std::string_view text, const Data &defaults, flags::Flags flags)
+ParseResult parse(std::string_view text, const Data &defaults, Flags<ParseFlags> flags)
 {
     Parser parser{text, defaults, flags};
     return parser.parse();
@@ -291,7 +291,7 @@ tl::expected<std::filesystem::path, std::error_code> getdir(std::string_view app
     return appdir;
 }
 
-ParseResult parse_or_create(std::string_view appname, const Data &defaults, flags::Flags flags)
+ParseResult parse_or_create(std::string_view appname, const Data &defaults, Flags<ParseFlags> flags)
 {
     auto dir = getdir(appname);
     if (!dir)

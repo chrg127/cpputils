@@ -23,7 +23,7 @@ std::vector<std::string> getstrings(conf::Value list)
 
 int main(void)
 {
-    auto [data, errors] = conf::parse_or_create("app", defaults, conf::flags::AcceptAnyKey);
+    auto [data, errors] = conf::parse_or_create("app", defaults, { conf::AcceptAnyKey });
     for (auto err : errors)
         fmt::print("{}\n", err.message());
 

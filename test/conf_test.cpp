@@ -14,7 +14,7 @@ TEST_CASE("Simple conf test", "[conf]") {
         b = 1.0
         c = false
     )";
-    auto [conf, errors] = conf::parse(text, {}, conf::flags::AcceptAnyKey);
+    auto [conf, errors] = conf::parse(text, {}, { conf::AcceptAnyKey });
     REQUIRE(conf["a"] == std::string("f"));
     REQUIRE(conf["b"] == 1.0f);
     REQUIRE(conf["c"] == false);

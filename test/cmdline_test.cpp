@@ -28,7 +28,7 @@ TEST_CASE("Subcommands test", "[cmdline]")
 {
     const char *argv[] = { "programname", "-h", "subcmd", "-h", nullptr};
     int argc = std::size(argv) - 1;
-    auto r = cmdline::parse(argc, argv, args, cmdline::Flags::StopAtFirstNonOption);
+    auto r = cmdline::parse(argc, argv, args, { cmdline::StopAtFirstNonOption });
     REQUIRE(!r.got_error);
     REQUIRE(r.found("help"));
     REQUIRE(!r.found("width"));
