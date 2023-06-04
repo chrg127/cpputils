@@ -46,13 +46,13 @@ struct Value {
     std::variant<int, float, bool, std::string, ValueList> value;
 
     Value() = default;
-    explicit Value(bool v)               : value(v) {}
-    explicit Value(int v)                : value(v) {}
-    explicit Value(float v)              : value(v) {}
-    explicit Value(const std::string &v) : value(v) {}
-    explicit Value(const char *v)        : value(std::string(v)) {}
-    explicit Value(char *v)              : value(std::string(v)) {}
-    explicit Value(ValueList &&vs) : value(std::move(vs)) {}
+    explicit Value(bool v)               : value{v} {}
+    explicit Value(int v)                : value{v} {}
+    explicit Value(float v)              : value{v} {}
+    explicit Value(const std::string &v) : value{v} {}
+    explicit Value(const char *v)        : value{std::string(v)} {}
+    explicit Value(char *v)              : value{std::string(v)} {}
+    explicit Value(ValueList &&vs)       : value{std::move(vs)} {}
 
     template <typename T> T as() const { return std::get<T>(value); }
     Type type() const { return static_cast<Type>(value.index()); }
@@ -83,6 +83,7 @@ template <typename T>
 inline bool operator==(const Value &v, const T &t)
     requires std::is_same_v<T, int>  || std::is_same_v<T, float>
           || std::is_same_v<T, bool> || std::is_same_v<T, std::string>
+          || std::is_same_v<T, ValueList>
 {
     const auto *p = std::get_if<T>(&v.value);
     return p != nullptr && *p == t;
@@ -90,8 +91,8 @@ inline bool operator==(const Value &v, const T &t)
 
 namespace literals {
 
-inline Value operator"" _v(unsigned long long x)  { return conf::Value{int(x)}; }
-inline Value operator"" _v(long double x)         { return conf::Value{float(x)}; }
+inline Value operator"" _v(unsigned long long x)         { return conf::Value{int(x)}; }
+inline Value operator"" _v(long double x)                { return conf::Value{float(x)}; }
 inline Value operator"" _v(const char *x, std::size_t n) { return conf::Value{std::string(x, n)}; }
 
 } // namespace literals

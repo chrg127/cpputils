@@ -125,7 +125,8 @@ struct Parser {
         : lexer{s}, defaults{defaults}, flags{flags}
     {}
 
-    void error(Token t, Error::Type type, std::string key = {}, conf::Value defvalue = {}, conf::Value value = {})
+    void error(Token t, Error::Type type, std::string key = {},
+        conf::Value defvalue = {}, conf::Value value = {})
     {
         auto [line, col] = lexer.position_of(t);
         throw Error {
@@ -146,12 +147,19 @@ struct Parser {
         if (cur.type == Token::InvalidChar)  error(cur, Error::UnexpectedCharacter);
     }
 
-    void consume(Token::Type type, Error::Type err, std::string key = {}, conf::Value defvalue = {})
+    void consume(Token::Type type, Error::Type err, std::string key = {},
+        conf::Value defvalue = {})
     {
         cur.type == type ? advance() : error(cur, err, key, defvalue);
     }
 
-    bool match(Token::Type type)                         { if (cur.type != type) return false; else { advance(); return true; } }
+    bool match(Token::Type type)
+    {
+        if (cur.type != type)
+            return false;
+        advance();
+        return true;
+    }
 
     std::optional<conf::Value> parse_value()
     {
@@ -181,25 +189,25 @@ struct Parser {
         advance();
         while (!lexer.at_end()) {
             try {
-                if (!match(Token::Newline)) {
-                    consume(Token::Ident, Error::NoIdent);
-                    auto ident = std::string(prev.text);
-                    auto it = defaults.find(ident);
-                    if (it == defaults.end() && !(flags & flags::AcceptAnyKey))
-                        error(prev, Error::InvalidKey);
-                    auto default_value = it != defaults.end() ? it->second : conf::Value{};
-                    auto &pos = data[ident];
-                    pos = default_value;
-                    consume(Token::EqualSign, Error::NoEqualAfterIdent, ident, default_value);
-                    auto v = parse_value();
-                    if (!v)
-                        error(prev, Error::NoValueAfterEqual, ident, default_value);
-                    else if (it != defaults.end() && v.value().type() != it->second.type())
-                        error(prev, Error::MismatchedTypes, ident, it->second, v.value());
-                    else
-                        pos = v.value();
-                    consume(Token::Newline, Error::NoNewlineAfterValue);
-                }
+                if (match(Token::Newline))
+                    continue;
+                consume(Token::Ident, Error::NoIdent);
+                auto ident = std::string(prev.text);
+                auto it = defaults.find(ident);
+                if (it == defaults.end() && !(flags & flags::AcceptAnyKey))
+                    error(prev, Error::InvalidKey);
+                auto defval = it != defaults.end() ? it->second : Value{};
+                auto &pos = data[ident];
+                pos = defval;
+                consume(Token::EqualSign, Error::NoEqualAfterIdent, ident, defval);
+                auto v = parse_value();
+                if (!v)
+                    error(prev, Error::NoValueAfterEqual, ident, defval);
+                else if (it != defaults.end() && v.value().type() != it->second.type())
+                    error(prev, Error::MismatchedTypes, ident, it->second, v.value());
+                else
+                    pos = v.value();
+                consume(Token::Newline, Error::NoNewlineAfterValue);
             } catch (const Error &error) {
                 errors.push_back(error);
                 while (cur.type != Token::End && cur.type != Token::Newline)
@@ -292,7 +300,11 @@ ParseResult parse_or_create(std::string_view appname, const Data &defaults, flag
     if (auto text = io::read_file(file_path); text)
         return parse(text.value(), defaults, flags);
     auto err = write_to(file_path, defaults);
-    return std::make_pair(defaults, err == std::error_code{} ? std::vector<Error>{} : std::vector{ Error { .type = Error::External, .external_error = err } });
+    return std::make_pair(
+        defaults,
+        err == std::error_code{} ? std::vector<Error>{}
+                                 : std::vector{ Error { .type = Error::External, .external_error = err } }
+    );
 }
 
 } // namespace conf
