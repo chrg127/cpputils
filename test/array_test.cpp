@@ -4,14 +4,6 @@
 
 TEST_CASE("Simple test for Span2D", "[array]")
 {
-    auto print = [](auto s) {
-        for (auto i = 0u; i < s.height(); i++) {
-            for (auto j = 0u; j < s.width(); j++)
-                fmt::print("{} ", s[i][j]);
-            fmt::print("\n");
-        }
-    };
-
     auto v = std::vector<int>{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
     std::span<int> the_span{v};
     auto s1 = util::Span2D<int>{v, 4, 4};

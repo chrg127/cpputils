@@ -4,7 +4,8 @@ project 	:= cpputil
 files 		:= conf.cpp io.cpp
 main_files	:=
 test_files	:= array_test.cpp bits_test.cpp callcommand_test.cpp \
-			   cmdline_test.cpp conf_test.cpp io_test.cpp string_test.cpp
+			   cmdline_test.cpp conf_test.cpp io_test.cpp string_test.cpp \
+			   flags_test.cpp
 test_name	:= test
 conf_example_files := conf_example.cpp
 conf_example_name  := conf_example

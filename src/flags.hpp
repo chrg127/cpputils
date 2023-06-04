@@ -18,5 +18,3 @@ public:
     Flags<T> & intersect(Flags<T> &other) { data &= other.data; return *this; }
     explicit operator bool() const        { return data; }
 };
-
-template <typename T> Flags<T> operator|(T a, T b) { return Flags<T> { a, b }; }
