@@ -10,8 +10,6 @@ class Flags {
 public:
     Flags() = default;
     Flags(std::initializer_list<T> values) { for (auto v : values) add(v); }
-
-    // explicit Flags(auto&&... values)      { (add(values), ...); }
     void add(T value)                     { data |=  (1 << static_cast<NumType>(value)); }
     void remove(T value)                  { data &= ~(1 << static_cast<NumType>(value)); }
     bool contains(T value) const          { return data & (1 << static_cast<NumType>(value)); }
