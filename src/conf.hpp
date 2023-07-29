@@ -98,6 +98,48 @@ inline Value operator"" _v(const char *x, std::size_t n) { return conf::Value{st
 
 } // namespace literals
 
+/* Convert a type to its respective enum value */
+template <typename T>
+Type type_to_enum_value()
+{
+    if constexpr(std::is_same_v<T, int>)         return Type::Int;
+    if constexpr(std::is_same_v<T, float>)       return Type::Float;
+    if constexpr(std::is_same_v<T, bool>)        return Type::Bool;
+    if constexpr(std::is_same_v<T, std::string>) return Type::String;
+    if constexpr(std::is_same_v<T, ValueList>)   return Type::List;
+}
+
+/* Utility for ValueList. Converts a ValueList to a vector of an actual type,
+ * at the cost of no error handling. */
+template <typename T>
+std::vector<T> convert_list_no_errors(const ValueList &v)
+{
+    std::vector<T> r;
+    r.reserve(v.size());
+    for (auto &x : v)
+        if (x.type() == type_to_enum_value<T>())
+            r.push_back(x.as<T>());
+    return r;
+}
+
+/* Same as above, but if we find an element with an invalid type, return an
+ * index to that element. */
+template <typename T>
+tl::expected<std::vector<T>, int> convert_list(const ValueList &v)
+{
+    std::vector<T> r;
+    r.reserve(v.size());
+    for (int i = 0; i < v.size(); i++) {
+        if (v[i].type() == type_to_enum_value<T>())
+            r.push_back(v[i].as<T>());
+        else
+            return tl::unexpected(i);
+    }
+    return r;
+}
+
+
+
 /*
  * An error found while parsing.
  * @type: what kind of error.

@@ -11,16 +11,6 @@ const conf::Data defaults = {
     { "barr", conf::Value(conf::ValueList{ 1_v, 2_v, 3_v }) }
 };
 
-std::vector<std::string> getstrings(conf::Value list)
-{
-    std::vector<std::string> strings;
-    for (auto v : list.as<conf::ValueList>()) {
-        if (v.type() == conf::Type::String)
-            strings.push_back(v.as<std::string>());
-    }
-    return strings;
-}
-
 int main(void)
 {
     auto [data, errors] = conf::parse_or_create("app", defaults, { conf::AcceptAnyKey });
@@ -32,7 +22,7 @@ int main(void)
         fmt::print("{} : {}\n", k, v.to_string());
 
     fmt::print("strings found:\n");
-    for (auto s : getstrings(data["barr"]))
+    for (auto s : convert_list_no_errors<std::string>(data["barr"].as<conf::ValueList>()))
         fmt::print("{}\n", s);
 
     conf::write("app", data);
