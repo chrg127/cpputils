@@ -13,7 +13,7 @@ constexpr inline u64 bitmask(u8 nbits) { return (1UL << nbits) - 1UL; }
 /* Functions for getting or setting bits. */
 constexpr inline u64 getbit( u64 num, u8 bitno)           { return num >> bitno & 1; }
 constexpr inline u64 getbits(u64 num, u8 bitno, u8 nbits) { return num >> bitno & bitmask(nbits); }
-constexpr inline u64 setbit(u64 num, u8 bitno, u8 data) { return (num & ~(1 << bitno)) | (data & 1) << bitno; }
+constexpr inline u64 setbit(u64 num, u8 bitno, u8 data)   { return (num & ~(1 << bitno)) | (data & 1) << bitno; }
 
 constexpr inline u64 setbits(u64 num, u8 bitno, u8 nbits, u64 data)
 {

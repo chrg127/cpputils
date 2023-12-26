@@ -144,7 +144,7 @@ inline void default_printer(Warn w, std::string_view o, std::string_view s)
 }
 
 /*
- * The main parsing function.  * It takes as parameters:
+ * The main parsing function. It takes as parameters:
  * @argc and @argv: no explanation needed.
  * @opts: A collection (can be whatever you want, even a C array) of Option
  *        objects that specifies the valid options and arguments.
@@ -198,7 +198,7 @@ inline Result parse(int argc, char const *const argv[], std::span<const Option> 
                         return r.update_argcv(i, argc, argv);
                 }
             }
-        } else {                    // long option
+        } else { // long option
             auto eqpos = cur.find('=', 2);  // split up by '='
             auto opt = eqpos == cur.npos ? cur.substr(2)
                                          : cur.substr(2, eqpos-2);

@@ -2,8 +2,17 @@
 
 #include <tuple>
 #ifdef PLATFORM_WINDOWS
-    #define WIN32_LEAN_AND_MEAN
+    #define NO_MIN_MAX
+    #include <initguid.h>
+    #include <cguid.h>
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
     #include <windows.h>
+    #include <direct.h>
+    #include <io.h>
+    #include <wchar.h>
+    #include <shlobj.h>
+    #include <shellapi.h>
 #elif defined(PLATFORM_LINUX) || defined(PLATFORM_MACOS)
     #include <fcntl.h>
     #include <sys/mman.h>
@@ -101,8 +110,8 @@ namespace directory {
 std::filesystem::path home()
 {
 #ifdef PLATFORM_WINDOWS
-    wchar_t path_string[PATH_MAX] = L"";
-    SHGetFolderPathW(nullptr, CSIDL_PROFILE | CSIDL_FLAG_CREATE, nullptr, 0, path);
+    wchar_t path_string[MAX_PATH] = L"";
+    SHGetFolderPathW(nullptr, CSIDL_PROFILE | CSIDL_FLAG_CREATE, nullptr, 0, path_string);
     return fs::path(path_string);
 #else
     auto *userinfo = getpwuid(getuid());
@@ -113,8 +122,8 @@ std::filesystem::path home()
 std::filesystem::path config()
 {
 #ifdef PLATFORM_WINDOWS
-    wchar_t path_string[PATH_MAX] = L"";
-    SHGetFolderPathW(nullptr, CSIDL_APPDATA | CSIDL_FLAG_CREATE, nullptr, 0, path);
+    wchar_t path_string[MAX_PATH] = L"";
+    SHGetFolderPathW(nullptr, CSIDL_APPDATA | CSIDL_FLAG_CREATE, nullptr, 0, path_string);
     return fs::path(path_string);
 #elif defined(PLATFORM_MACOS)
     return home() / "Library/Application Support";
@@ -128,8 +137,8 @@ std::filesystem::path config()
 std::filesystem::path data()
 {
 #ifdef PLATFORM_WINDOWS
-    wchar_t path_string[PATH_MAX] = L"";
-    SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, nullptr, 0, path);
+    wchar_t path_string[MAX_PATH] = L"";
+    SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, nullptr, 0, path_string);
     return fs::path(path_string);
 #elif defined(PLATFORM_MACOS)
     return home() / "Library/Application Support";
@@ -137,6 +146,20 @@ std::filesystem::path data()
     if (auto *env = getenv("XDG_DATA_HOME"))
         return fs::path(env);
     return home() / fs::path(".local/share");
+#endif
+}
+
+std::filesystem::path applications()
+{
+#ifdef PLATFORM_WINDOWS
+    wchar_t path_string[MAX_PATH] = L"";
+    // CSIDL_STARTMENU is likely wrong
+    SHGetFolderPathW(nullptr, CSIDL_STARTMENU | CSIDL_FLAG_CREATE, nullptr, 0, path_string);
+    return fs::path(path_string);
+#elif defined(PLATFORM_MACOS)
+    return "/Applications";
+#else
+    return data() / "applications";
 #endif
 }
 

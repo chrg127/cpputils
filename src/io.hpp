@@ -22,7 +22,7 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <expected.hpp>
+#include <tl/expected.hpp>
 #include "common.hpp"
 
 namespace io {
@@ -226,6 +226,7 @@ namespace directory {
 std::filesystem::path home();
 std::filesystem::path config();
 std::filesystem::path data();
+std::filesystem::path applications();
 
 } // namespace directory
 

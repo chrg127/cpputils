@@ -6,7 +6,7 @@
 
 namespace util {
 
-/* An array with size determined at run-time. This size never grows.  */
+/* An array with size determined at run-time. This size never grows. */
 template <typename T>
 class HeapArray {
     std::unique_ptr<T[]> p;
