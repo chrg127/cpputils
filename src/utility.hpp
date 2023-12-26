@@ -21,10 +21,4 @@ std::function<R(Args...)> member_fn(T *obj, R (T::*fn)(Args...))
     return [=](Args&&... args) -> R { return (obj->*fn)(args...); };
 }
 
-template <typename T>
-T ceil_div(T x, T y)
-{
-    return x/y + (x%y != 0);
-}
-
 } // namespace util
