@@ -1,4 +1,4 @@
-#include "../src/io.hpp"
+#include "../io.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/core.h>
 

@@ -22,7 +22,7 @@ LDLIBS 		:= -lfmt
 libs_test 	:= $(shell pkg-config --libs catch2-with-main)
 PREFIX		:= /usr/local
 DESTDIR		:=
-VPATH 		:= src:test:examples
+VPATH 		:= src:examples:src/test
 
 outdir := debug
 ifeq ($(buildtype),debug)

@@ -1,5 +1,5 @@
-#include "../src/callcommand.hpp"
-#include "../src/string.hpp"
+#include "../callcommand.hpp"
+#include "../string.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/core.h>
 

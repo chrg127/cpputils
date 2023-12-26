@@ -1,4 +1,4 @@
-#include "../src/string.hpp"
+#include "../string.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("Split a string", "[string]") {

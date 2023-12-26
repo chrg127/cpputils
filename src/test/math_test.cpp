@@ -1,4 +1,4 @@
-#include "../src/math.hpp"
+#include "../math.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("Simple test for ceiling division", "[math]")

@@ -1,4 +1,4 @@
-#include "../src/array.hpp"
+#include "../array.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("Simple test for Span2D", "[array]")
