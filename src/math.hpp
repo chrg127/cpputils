@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include <span>
+#include <cstdint>
 #include "concepts.hpp"
 
 namespace math {
