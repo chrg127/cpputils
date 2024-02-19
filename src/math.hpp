@@ -39,4 +39,10 @@ T avg(std::span<T> ns)
 template <Number T>
 T percent_of(T x, T max) { return x * 100 / max; }
 
+template <std::integral T>
+T discreete_log2(T x)
+{
+    return std::bit_width(static_cast<uint64_t>(x)) - 1;
+}
+
 } // namespace math
