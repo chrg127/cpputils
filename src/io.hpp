@@ -23,6 +23,7 @@
 #include <string>
 #include <string_view>
 #include <tl/expected.hpp>
+#include <vector>
 #include "common.hpp"
 
 namespace io {
@@ -96,6 +97,15 @@ public:
 
     static File assoc(FILE *fp) { return {fp, std::filesystem::path("/")}; }
 
+    int close() { return std::fclose(file_ptr.release()); }
+
+    std::string           name() const noexcept { return filepath.filename().string(); }
+    std::filesystem::path path() const noexcept { return filepath; }
+    FILE *                data() const noexcept { return file_ptr.get(); }
+
+    int getc()        { return std::fgetc(file_ptr.get()); }
+    int ungetc(int c) { return std::ungetc(c, file_ptr.get()); }
+
     bool get_word(std::string &str)
     {
         auto is_delim = [](int c) { return c == ' '  || c == '\t' || c == '\r' || c == '\n'; };
@@ -120,12 +130,23 @@ public:
         return !(c == EOF);
     }
 
-    std::string           name() const noexcept { return filepath.filename().string(); }
-    std::filesystem::path path() const noexcept { return filepath; }
-    FILE *                data() const noexcept { return file_ptr.get(); }
-    int                   getc()                { return std::fgetc(file_ptr.get()); }
-    int                   ungetc(int c)         { return std::ungetc(c, file_ptr.get()); }
-    int                   close()               { return std::fclose(file_ptr.release()); }
+    std::vector<u8> read(std::size_t n)
+    {
+        auto buf = std::vector<u8>(n, 0);
+        auto num_read = std::fread(buf.data(), sizeof(u8), buf.size(), file_ptr.get());
+        buf.resize(num_read);
+        return buf;
+    }
+
+    std::size_t read(std::span<u8> buf)
+    {
+        return std::fread(buf.data(), sizeof(u8), buf.size(), file_ptr.get());
+    }
+
+    std::size_t write(std::span<u8> bytes)
+    {
+        return std::fwrite(bytes.data(), sizeof(u8), bytes.size(), file_ptr.get());
+    }
 };
 
 /*
