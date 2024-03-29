@@ -19,13 +19,16 @@ template <std::floating_point T>
 std::from_chars_result from_chars_double(const char *first, const char *, T &value)
 {
     char *endptr;
+    errno = 0;
     if constexpr(std::is_same_v<T, double>)
         value = strtod(first, &endptr);
     else
         value = strtof(first, &endptr);
     std::from_chars_result res;
     res.ptr = endptr,
-    res.ec = static_cast<std::errc>(errno);
+    res.ec = endptr == first ? std::errc::invalid_argument
+           : errno != 0      ? static_cast<std::errc>(errno)
+           : std::errc();
     return res;
 }
 
