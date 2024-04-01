@@ -1,4 +1,4 @@
-#include "../src/conf.hpp"
+#include "../conf.hpp"
 #include <fmt/core.h>
 
 using namespace conf::literals;

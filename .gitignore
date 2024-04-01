@@ -3,3 +3,5 @@ main
 debug
 release
 conf_test.txt
+.cache
+build

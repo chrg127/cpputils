@@ -1,4 +1,4 @@
-#include "../src/io.hpp"
+#include "../io.hpp"
 #include <fmt/core.h>
 
 int main()
