@@ -17,7 +17,7 @@
 #include <filesystem>
 #include <system_error>
 #include <vector>
-#include <tl/expected.hpp>
+#include <expected>
 #include "flags.hpp"
 
 namespace conf {
@@ -125,7 +125,7 @@ std::vector<T> convert_list_no_errors(const ValueList &v)
 /* Same as above, but if we find an element with an invalid type, return an
  * index to that element. */
 template <typename T>
-tl::expected<std::vector<T>, int> convert_list(const ValueList &v)
+std::expected<std::vector<T>, int> convert_list(const ValueList &v)
 {
     std::vector<T> r;
     r.reserve(v.size());
@@ -133,7 +133,7 @@ tl::expected<std::vector<T>, int> convert_list(const ValueList &v)
         if (v[i].type() == type_to_enum_value<T>())
             r.push_back(v[i].as<T>());
         else
-            return tl::unexpected(i);
+            return std::unexpected(i);
     }
     return r;
 }
@@ -214,7 +214,7 @@ std::error_code write(std::string_view appname, const Data &data);
  * @appname: name of the application, which is used as the name of the
  * configuration directory.
  */
-tl::expected<std::filesystem::path, std::error_code>
+std::expected<std::filesystem::path, std::error_code>
 getdir(std::string_view appname);
 
 /*

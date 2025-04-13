@@ -1,6 +1,6 @@
-#include "../flags.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/core.h>
+#include <flags.hpp>
 
 enum RenderPass {
     Geometry, Lighting

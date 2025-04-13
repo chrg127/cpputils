@@ -1,7 +1,7 @@
-#include "../callcommand.hpp"
-#include "../string.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <fmt/core.h>
+#include <callcommand.hpp>
+#include <string.hpp>
 
 static std::string parse_error_message(int which, std::string_view name, int num_params)
 {

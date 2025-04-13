@@ -12,18 +12,21 @@ else()
     set(warnings -Wall -Wextra -Wpedantic)
 endif()
 
+# example for io library
 add_executable(io_example src/io.cpp src/examples/io_example.cpp)
-target_compile_features(io_example PRIVATE cxx_std_20)
+target_compile_features(io_example PRIVATE cxx_std_23)
 target_compile_options(io_example PRIVATE ${warnings})
-target_include_directories(io_example PRIVATE external/include)
+target_include_directories(io_example PRIVATE include)
 target_link_libraries(io_example fmt::fmt)
 
+# example for conf library
 add_executable(conf_example src/conf.cpp src/io.cpp src/examples/conf_example.cpp)
-target_compile_features(conf_example PRIVATE cxx_std_20)
-target_compile_options(io_example PRIVATE ${warnings})
-target_include_directories(conf_example PRIVATE external/include)
+target_compile_features(conf_example PRIVATE cxx_std_23)
+target_compile_options(conf_example PRIVATE ${warnings})
+target_include_directories(conf_example PRIVATE include)
 target_link_libraries(conf_example PRIVATE fmt::fmt)
 
+# tests
 add_executable(cpputils-tester
     src/conf.cpp src/io.cpp
     src/test/array_test.cpp src/test/bits_test.cpp src/test/callcommand_test.cpp
@@ -31,9 +34,9 @@ add_executable(cpputils-tester
     src/test/io_test.cpp src/test/io_test.txt src/test/math_test.cpp
     src/test/string_test.cpp
 )
-target_compile_features(cpputils-tester PRIVATE cxx_std_20)
-target_compile_options(io_example PRIVATE ${warnings})
-target_include_directories(cpputils-tester PRIVATE external/include)
+target_compile_features(cpputils-tester PRIVATE cxx_std_23)
+target_compile_options(cpputils-tester PRIVATE ${warnings})
+target_include_directories(cpputils-tester PRIVATE include)
 target_link_libraries(cpputils-tester PRIVATE fmt::fmt Catch2::Catch2WithMain)
 
 include(CTest)

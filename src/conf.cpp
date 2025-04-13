@@ -1,6 +1,6 @@
-#include "conf.hpp"
-#include "io.hpp"
-#include "string.hpp"
+#include <conf.hpp>
+#include <io.hpp>
+#include <string.hpp>
 
 namespace fs = std::filesystem;
 using namespace std::literals::string_literals;
@@ -278,7 +278,7 @@ std::error_code write(std::string_view appname, const Data &data)
     return write_to(dir.value() / (std::string(appname) + ".conf"), data);
 }
 
-tl::expected<std::filesystem::path, std::error_code> getdir(std::string_view appname)
+std::expected<std::filesystem::path, std::error_code> getdir(std::string_view appname)
 {
     auto config = io::directory::config();
     auto appdir = fs::exists(config) ? config / appname
@@ -286,7 +286,7 @@ tl::expected<std::filesystem::path, std::error_code> getdir(std::string_view app
     if (!fs::exists(appdir)) {
         std::error_code ec;
         if (!fs::create_directory(appdir), ec)
-            return tl::unexpected(ec);
+            return std::unexpected(ec);
     }
     return appdir;
 }

@@ -1,5 +1,5 @@
-#include "../conf.hpp"
 #include <fmt/core.h>
+#include <conf.hpp>
 
 using namespace conf::literals;
 

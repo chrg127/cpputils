@@ -1,5 +1,5 @@
-#include "../string.hpp"
 #include <catch2/catch_test_macros.hpp>
+#include <string.hpp>
 
 TEST_CASE("Split a string", "[string]") {
     std::string test = "1,2,3";

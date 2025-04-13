@@ -22,7 +22,7 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <tl/expected.hpp>
+#include <expected>
 #include <vector>
 #include "common.hpp"
 
@@ -33,7 +33,7 @@ enum class Access { Read, Write, Modify, Append, };
 
 /* A type returned when opening a file. */
 template <typename T>
-using Result = tl::expected<T, std::error_code>;
+using Result = std::expected<T, std::error_code>;
 
 namespace detail {
     inline void file_deleter(FILE *fp)
@@ -91,7 +91,7 @@ public:
             }
         }(pathname.string());
         if (!fp)
-            return tl::unexpected{detail::make_error()};
+            return std::unexpected{detail::make_error()};
         return File{fp, pathname};
     }
 
@@ -189,7 +189,7 @@ public:
     {
         auto v = detail::open_mapped_file(path, access);
         if (!v)
-            return tl::unexpected(v.error());
+            return std::unexpected(v.error());
         return MappedFile(v.value().first, v.value().second, path);
     }
 
@@ -230,14 +230,14 @@ inline Result<std::string> read_file(std::filesystem::path path)
 {
     FILE *file = fopen(path.string().c_str(), "rb");
     if (!file)
-        return tl::unexpected(detail::make_error());
+        return std::unexpected(detail::make_error());
     fseek(file, 0l, SEEK_END);
     long size = ftell(file);
     rewind(file);
     std::string buf(size, ' ');
     size_t bytes_read = fread(buf.data(), sizeof(char), size, file);
     if (bytes_read < std::size_t(size))
-        return tl::unexpected(detail::make_error());
+        return std::unexpected(detail::make_error());
     fclose(file);
     return buf;
 }
