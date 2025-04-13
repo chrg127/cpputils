@@ -177,4 +177,12 @@ bool iequals(const T& a, const T& b)
         });
 }
 
+/* Replace every instance of `from` to `to` in a string, done in-place */
+inline void replace_all(std::string &s, std::string_view from, std::string_view to)
+{
+    for (auto i = s.find_first_of(from); i != std::string::npos; i = s.find_first_of(from)) {
+        s.replace(i, from.size(), to);
+    }
+}
+
 } // namespace string

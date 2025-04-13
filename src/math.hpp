@@ -46,4 +46,14 @@ T discreete_log2(T x)
     return std::bit_width(static_cast<uint64_t>(x)) - 1;
 }
 
+template <typename T>
+T to_next_pow2(T x)
+{
+    T y = 1;
+    while (y < x) {
+        y *= 2;
+    }
+    return y;
+}
+
 } // namespace math

@@ -30,6 +30,20 @@ constexpr inline u8 reverse(u8 n)
     return n;
 }
 
+template <typename T>
+inline T reverse2(T v)
+{
+    T r = v;
+    int s = sizeof(v) * CHAR_BIT - 1;
+    for (v >>= 1; v; v >>= 1) {
+        r <<= 1;
+        r |= v & 1;
+        s--;
+    }
+    r <<= s;
+    return r;
+}
+
 /*
  * A portable bit-field type. To be used in unions, when you want to access
  * both a whole number and parts of it. For example:
