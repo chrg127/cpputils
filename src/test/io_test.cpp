@@ -1,5 +1,4 @@
 #include <catch2/catch_test_macros.hpp>
-#include <fmt/core.h>
 #include <io.hpp>
 
 TEST_CASE("read_file test", "[io]")
