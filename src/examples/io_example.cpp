@@ -1,9 +1,9 @@
 #include <io.hpp>
-#include <fmt/core.h>
+#include <cstdio>
 
 int main()
 {
-    fmt::print("home: {}\n", io::directory::home().string());
-    fmt::print("home: {}\n", io::directory::config().string());
+    printf("home: %s\n", io::directory::home().string().c_str());
+    printf("config: %s\n", io::directory::config().string().c_str());
     return 0;
 }

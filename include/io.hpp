@@ -222,31 +222,21 @@ public:
     std::filesystem::path   path()                                   const noexcept { return filepath; }
 };
 
-/*
- * Reads an entire file into an std::string. Useful if you just want to read
- * all of a file's contents at once, without needing to create a File object.
- */
-inline Result<std::string> read_file(std::filesystem::path path)
-{
-    FILE *file = fopen(path.string().c_str(), "rb");
-    if (!file)
-        return std::unexpected(detail::make_error());
-    fseek(file, 0l, SEEK_END);
-    long size = ftell(file);
-    rewind(file);
-    std::string buf(size, ' ');
-    size_t bytes_read = fread(buf.data(), sizeof(char), size, file);
-    if (bytes_read < std::size_t(size))
-        return std::unexpected(detail::make_error());
-    fclose(file);
-    return buf;
-}
+/* Reads a file's contents into an std::string. */
+Result<std::string> read_file(std::filesystem::path path);
+
+/* Reads an entire file into an array of bytes. */
+Result<std::vector<u8>> read_file_bytes(std::filesystem::path path);
 
 namespace directory {
 
+// The user's home directory (~ on linux, C:\Users\<user> on Windows).
 std::filesystem::path home();
+// The user's config directory (.config on linux).
 std::filesystem::path config();
+// The user's data directory (.local/share on linux).
 std::filesystem::path data();
+// The user's applications directory.
 std::filesystem::path applications();
 
 } // namespace directory

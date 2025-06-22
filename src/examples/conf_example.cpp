@@ -1,4 +1,4 @@
-#include <fmt/core.h>
+#include <cstdio>
 #include <conf.hpp>
 
 using namespace conf::literals;
@@ -15,15 +15,15 @@ int main(void)
 {
     auto [data, errors] = conf::parse_or_create("app", defaults, { conf::AcceptAnyKey });
     for (auto err : errors)
-        fmt::print("{}\n", err.message());
+        printf("%s\n", err.message().c_str());
 
-    fmt::print("values found in config:\n");
+    printf("values found in config:\n");
     for (auto [k, v] : data)
-        fmt::print("{} : {}\n", k, v.to_string());
+        printf("%s : %s\n", k.c_str(), v.to_string().c_str());
 
-    fmt::print("strings found:\n");
+    printf("strings found:\n");
     for (auto s : convert_list_no_errors<std::string>(data["barr"].as<conf::ValueList>()))
-        fmt::print("{}\n", s);
+        printf("%s\n", s.c_str());
 
     conf::write("app", data);
     return 0;

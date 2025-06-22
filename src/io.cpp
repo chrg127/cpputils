@@ -61,7 +61,7 @@ Result<std::pair<u8 *, std::size_t>> open_mapped_file(std::filesystem::path path
     return std::make_pair(data, size);
 }
 
-int close_mapped_file(u8 *ptr, std::size_t len)
+int close_mapped_file(u8 *ptr, std::size_t)
 {
     return UnmapViewOfFile(ptr);
 }
@@ -104,6 +104,33 @@ int close_mapped_file(u8 *ptr, std::size_t len)
 #endif
 
 } // namespace detail
+
+template <typename T>
+static Result<T> _read_file(std::filesystem::path path)
+{
+    FILE *file = fopen(path.string().c_str(), "rb");
+    if (!file)
+        return std::unexpected(detail::make_error());
+    fseek(file, 0l, SEEK_END);
+    long size = ftell(file);
+    rewind(file);
+    auto buf = T(size, ' ');
+    size_t bytes_read = fread(buf.data(), sizeof(char), size, file);
+    if (bytes_read < std::size_t(size))
+        return std::unexpected(detail::make_error());
+    fclose(file);
+    return buf;
+}
+
+Result<std::string> read_file(std::filesystem::path path)
+{
+    return _read_file<std::string>(path);
+}
+
+Result<std::vector<u8>> read_file_bytes(std::filesystem::path path)
+{
+    return _read_file<std::vector<u8>>(path);
+}
 
 namespace directory {
 
