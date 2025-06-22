@@ -63,15 +63,22 @@ enum class Platform : uint { Windows, MacOS, Linux, Unknown };
 
 #define FWD(x) std::forward<decltype(x)>(x)
 
-// A better assert macro. Should trigger a quick break on any debugger.
+// For ASSERT macro and any possible future assert-like macros.
 #ifdef DEBUG
     #if __GNUC__
-        #define ASSERT(c) if (!(c)) __builtin_trap()
+        #define DEBUG_BREAK() __builtin_trap()
     #elif _MSC_VER
-        #define ASSERT(c) if (!(c)) __debugbreak()
+        #define DEBUG_BREAK() __debugbreak()
     #else
-        #define ASSERT(c) if (!(c)) *(volatile int *)0 = 0
+        #define DEBUG_BREAK() *(volatile int *)0 = 0
     #endif
+#else
+    #define DEBUG_BREAK()
+#endif
+
+// A better assert macro. Should trigger a quick break on any debugger.
+#ifdef DEBUG
+    #define ASSERT(c) do { if (!(c)) DEBUG_BREAK(); } while (0)
 #else
     #define ASSERT(c)
 #endif
