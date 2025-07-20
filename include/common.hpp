@@ -18,7 +18,7 @@ using intptr = intptr_t;
 using uintptr = uintptr_t;
 
 enum class Compiler : uint { Clang, GCC, MSVC, Unknown };
-enum class Platform : uint { Windows, MacOS, Linux, Unknown };
+enum class Platform : uint { Windows, MacOS, Linux, Emscripten, Unknown };
 
 #ifdef __clang__
     #define COMPILER_CLANG
@@ -44,6 +44,9 @@ enum class Platform : uint { Windows, MacOS, Linux, Unknown };
 #elif defined(linux) || defined(__linux__)
     #define PLATFORM_LINUX
     static inline constexpr Platform platform() { return Platform::Linux; }
+#elif defined(__EMSCRIPTEN__)
+    #define PLATFORM_EMSCRIPTEN
+    static inline constexpr Platform platform() { return Platform::Emscripten; }
 #else
     #define PLATFORM_UNKNOWN
     #warning "unable to detect platform"
