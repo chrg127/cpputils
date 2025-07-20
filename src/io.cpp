@@ -29,6 +29,11 @@ namespace io {
 
 namespace detail {
 
+std::error_code make_error(int ec = errno)
+{
+    return std::error_code(ec, std::system_category());
+}
+
 #ifdef PLATFORM_WINDOWS
 
 std::tuple<int, int, int, int> get_flags(Access access)
@@ -42,7 +47,7 @@ std::tuple<int, int, int, int> get_flags(Access access)
     }
 }
 
-Result<std::pair<u8 *, std::size_t>> open_mapped_file(std::filesystem::path path, Access access)
+std::expected<std::pair<u8 *, std::size_t>, std::error_code> open_mapped_file(std::filesystem::path path, Access access)
 {
     auto [desired_access, creation_disposition, protection, map_access] = get_flags(access);
     HANDLE file = CreateFileW(path.c_str(), desired_access, FILE_SHARE_READ,
@@ -79,7 +84,7 @@ std::pair<int, int> get_flags(Access access)
     }
 }
 
-Result<std::pair<u8 *, std::size_t>> open_mapped_file(std::filesystem::path path, Access access)
+std::expected<std::pair<u8 *, std::size_t>, std::error_code> open_mapped_file(std::filesystem::path path, Access access)
 {
     auto [open_flags, mmap_flags] = get_flags(access);
     int fd = ::open(path.c_str(), open_flags);
@@ -104,33 +109,6 @@ int close_mapped_file(u8 *ptr, std::size_t len)
 #endif
 
 } // namespace detail
-
-template <typename T>
-static Result<T> _read_file(std::filesystem::path path)
-{
-    FILE *file = fopen(path.string().c_str(), "rb");
-    if (!file)
-        return std::unexpected(detail::make_error());
-    fseek(file, 0l, SEEK_END);
-    long size = ftell(file);
-    rewind(file);
-    auto buf = T(size, ' ');
-    size_t bytes_read = fread(buf.data(), sizeof(char), size, file);
-    if (bytes_read < std::size_t(size))
-        return std::unexpected(detail::make_error());
-    fclose(file);
-    return buf;
-}
-
-Result<std::string> read_file(std::filesystem::path path)
-{
-    return _read_file<std::string>(path);
-}
-
-Result<std::vector<u8>> read_file_bytes(std::filesystem::path path)
-{
-    return _read_file<std::vector<u8>>(path);
-}
 
 namespace directory {
 
