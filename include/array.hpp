@@ -89,62 +89,6 @@ public:
     constexpr size_type height()                        const noexcept { return Height; }
 };
 
-/* A statically allocated vector. Its max size is always equal to N. */
-template <typename T, unsigned N>
-class StaticVector {
-    T p[N];
-    T *c = p;
-
-public:
-    using value_type      = T;
-    using size_type       = std::size_t;
-    using difference_type = std::ptrdiff_t;
-    using reference       =       value_type &;
-    using const_reference = const value_type &;
-    using pointer         =       value_type *;
-    using const_pointer   = const value_type *;
-    using iterator        =       value_type *;
-    using const_iterator  = const value_type *;
-
-    constexpr StaticVector() = default;
-
-    constexpr       reference operator[](size_type pos)                { return p[pos]; }
-    constexpr const_reference operator[](size_type pos) const          { return p[pos]; }
-    constexpr       reference front()                                  { return p[0]; }
-    constexpr const_reference front()                   const          { return p[0]; }
-    constexpr       reference back()                                   { return c[-1]; }
-    constexpr const_reference back()                    const          { return c[-1]; }
-    constexpr              T *data()                          noexcept { return p; }
-    constexpr        const T *data()                    const noexcept { return p; }
-    constexpr       iterator begin()                          noexcept { return p; }
-    constexpr const_iterator begin()                    const noexcept { return p; }
-    constexpr       iterator end()                            noexcept { return c; }
-    constexpr const_iterator end()                      const noexcept { return c; }
-    [[nodiscard]]
-    constexpr           bool empty()                    const noexcept { return c == p; }
-    constexpr      size_type size()                     const noexcept { return c - p; }
-    constexpr           void clear() noexcept                          { c = p; }
-    constexpr           void push_back(const T &value)                 { *c++ = value; }
-    constexpr           void push_back(T &&value)                      { *c++ = std::move(value); }
-    constexpr           void pop_back()                                { c--; }
-
-    template <typename... Args>
-    constexpr reference emplace_back(Args&&... args)
-    {
-        new (c) T(args...);
-        c++;
-        return c[-1];
-    }
-
-    constexpr void resize(size_type count, T value = T())
-    {
-        auto diff = count - size();
-        for (auto *ptr = c; ptr < c + diff; ptr++)
-            *ptr = value;
-        c += diff;
-    }
-};
-
 /* A 2D view over a 1D array. */
 template <typename T>
 class Span2D {
