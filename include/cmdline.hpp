@@ -35,7 +35,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <fmt/core.h>
+#include <print>
 #include "flags.hpp"
 
 namespace cmdline {
@@ -136,10 +136,10 @@ inline auto length_of(const Option &o) { return (o.shortopt == '\0' ? 0 : 4) + o
 inline void default_printer(Warn w, std::string_view o, std::string_view s)
 {
     switch (w) {
-    case Warn::InvalidOption: fmt::print("{}: invalid option\n", o); break;
-    case Warn::ArgRequired:   fmt::print("{}: argument required\n", o); break;
-    case Warn::ArgDefault:    fmt::print("{}: argument required (default {} will be used)\n", o, s); break;
-    case Warn::ArgIgnored:    fmt::print("{}: argument {} ignored\n", o, s); break;
+    case Warn::InvalidOption: std::print("{}: invalid option\n", o); break;
+    case Warn::ArgRequired:   std::print("{}: argument required\n", o); break;
+    case Warn::ArgDefault:    std::print("{}: argument required (default {} will be used)\n", o, s); break;
+    case Warn::ArgIgnored:    std::print("{}: argument {} ignored\n", o, s); break;
     }
 }
 
@@ -251,9 +251,9 @@ inline void print_options(std::span<const Option> opts, auto &&output)
     auto width = detail::length_of(*maxopt);
     output("Valid arguments:");
     for (const auto &o : opts)
-        output(fmt::format("    {:{}}    {}",
-                o.shortopt != '\0' ? fmt::format("-{}, --{} {}", o.shortopt, o.longopt, o.argname)
-                                   : fmt::format("--{} {}", o.longopt, o.argname),
+        output(std::format("    {:{}}    {}",
+                o.shortopt != '\0' ? std::format("-{}, --{} {}", o.shortopt, o.longopt, o.argname)
+                                   : std::format("--{} {}", o.longopt, o.argname),
                 width, o.desc));
 }
 
@@ -263,7 +263,7 @@ inline void print_options(std::span<const Option> opts, auto &&output)
  */
 inline void print_options(std::span<const Option> opts)
 {
-    print_options(opts, [](const auto &s) { fmt::print("{}\n", s); });
+    print_options(opts, [](const auto &s) { std::print("{}\n", s); });
 }
 
 } // namespace cmdline

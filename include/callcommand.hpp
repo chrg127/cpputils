@@ -33,7 +33,7 @@
  * using lambdas, due to weird C++ limitations, we must also declare the
  * types the Command should get as parameters, like so:
  *
- * Command<int, int>{ "sum", "s", [](int a, int b) { fmt::print("{}\n", a+b); } }
+ * Command<int, int>{ "sum", "s", [](int a, int b) { std::print("{}\n", a+b); } }
  *
  * While trying to find a match, call_command will call a function,
  * try_convert_impl, which will try to convert an argument to a new type.
@@ -59,7 +59,6 @@
 #include <stdexcept>
 #include <utility>
 #include <span>
-#include <fmt/core.h>
 
 namespace util {
 

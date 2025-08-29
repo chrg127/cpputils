@@ -1,6 +1,7 @@
 #pragma once
 
 #include <concepts>
+#include <climits>
 #include <limits>
 #include "common.hpp"
 

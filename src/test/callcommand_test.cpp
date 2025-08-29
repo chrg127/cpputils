@@ -1,13 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
-#include <fmt/core.h>
 #include <callcommand.hpp>
 #include <string.hpp>
 
 static std::string parse_error_message(int which, std::string_view name, int num_params)
 {
     switch (which) {
-    case 0: return fmt::format("Invalid command: {}.", name);
-    case 1: return fmt::format("Wrong number of parameters for command {} (got {})", name, num_params);
+    case 0: return std::format("Invalid command: {}.", name);
+    case 1: return std::format("Wrong number of parameters for command {} (got {})", name, num_params);
     default: return "";
     }
 }
@@ -17,7 +16,7 @@ int util::try_convert_impl<int>(std::string_view str)
 {
     if (auto o = string::to_number(str); o)
         return o.value();
-    throw ParseError(fmt::format("invalid number: {}", str));
+    throw ParseError(std::format("invalid number: {}", str));
 }
 
 int call_command(std::string_view which, std::array<std::string, 3> args)
