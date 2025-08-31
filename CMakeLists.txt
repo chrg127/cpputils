@@ -23,12 +23,11 @@ target_include_directories(conf_example PRIVATE include)
 
 # tests
 if (CPPUTILS_BUILD_TESTS)
+    file(GLOB test_files "src/test/*.cpp")
     add_executable(cpputils-tester
         src/conf.cpp src/io.cpp
-        src/test/array_test.cpp src/test/bits_test.cpp src/test/callcommand_test.cpp
-        src/test/cmdline_test.cpp src/test/conf_test.cpp src/test/flags_test.cpp
-        src/test/io_test.cpp src/test/io_test.txt src/test/math_test.cpp
-        src/test/string_test.cpp
+        ${test_files}
+        src/test/io_test.txt
     )
     target_compile_features(cpputils-tester PRIVATE cxx_std_23)
     target_compile_options(cpputils-tester PRIVATE -Wall -Wextra -Wpedantic)

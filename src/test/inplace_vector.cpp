@@ -6,5 +6,7 @@ TEST_CASE("InPlaceVector test", "[inplace_vector]")
     auto v = InPlaceVector<int, 2> { 1, 2 };
     REQUIRE(v[0] == 1);
     REQUIRE(v[1] == 2);
+    REQUIRE(*(v.begin() + 1) == 2);
+    REQUIRE(*(v.end() - 1) == 2);
 }
 

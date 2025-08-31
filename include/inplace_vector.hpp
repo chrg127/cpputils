@@ -1,5 +1,6 @@
 #include <array>
 #include <initializer_list>
+#include <stdexcept>
 
 // A vector allocated in-place, same as std::inplace_vector.
 template <typename T, unsigned N>
@@ -7,7 +8,7 @@ class InPlaceVector {
     static_assert(N > 0, "N must be > 0");
 
     std::array<T, N> p;
-    T *c = p.data();
+    std::size_t c = 0;
 
 public:
     using value_type      = T;
@@ -27,6 +28,7 @@ public:
         for (auto i = 0u; i < count; i++) {
             p[i] = T();
         }
+        c = count;
     }
 
     constexpr InPlaceVector(size_type count, const T &value)
@@ -34,13 +36,15 @@ public:
         for (auto i = 0u; i < count; i++) {
             p[i] = value;
         }
+        c = count;
     }
 
     constexpr InPlaceVector(std::initializer_list<T> init)
     {
         for (auto i = 0u; i < init.size(); i++) {
-            p[i] = init[i];
+            p[i] = *(init.begin() + i);
         }
+        c = init.size();
     }
 
     constexpr InPlaceVector(const InPlaceVector<T, N>  &other) { p = other.p; }
@@ -66,40 +70,40 @@ public:
     constexpr const_reference operator[](size_type pos) const          { return p[pos]; }
     constexpr       reference front()                                  { return p[0]; }
     constexpr const_reference front()                   const          { return p[0]; }
-    constexpr       reference back()                                   { return c[-1]; }
-    constexpr const_reference back()                    const          { return c[-1]; }
+    constexpr       reference back()                                   { return p[c-1]; }
+    constexpr const_reference back()                    const          { return p[c-1]; }
     constexpr              T *data()                          noexcept { return p; }
     constexpr        const T *data()                    const noexcept { return p; }
     constexpr       iterator begin()                          noexcept { return p.begin(); }
     constexpr const_iterator begin()                    const noexcept { return p.begin(); }
     constexpr const_iterator cbegin()                   const noexcept { return p.cbegin(); }
-    constexpr       iterator end()                            noexcept { return p.end(); }
-    constexpr const_iterator end()                      const noexcept { return p.end(); }
-    constexpr const_iterator cend()                     const noexcept { return p.cend(); }
-    constexpr           bool empty()                    const noexcept { return p.data() == c; }
-    constexpr      size_type size()                     const noexcept { return c - p.data(); }
-    static constexpr size_type max_size()               const noexcept { return N; }
-    static constexpr size_type capacity()               const noexcept { return N; }
+    constexpr       iterator end()                            noexcept { return p.begin() + c; }
+    constexpr const_iterator end()                      const noexcept { return p.begin() + c; }
+    constexpr const_iterator cend()                     const noexcept { return p.cbegin() + c; }
+    constexpr           bool empty()                    const noexcept { return c == 0; }
+    constexpr      size_type size()                     const noexcept { return c; }
+    static constexpr size_type max_size() noexcept { return N; }
+    static constexpr size_type capacity() noexcept { return N; }
 
-    constexpr void resize(size_type count, T value = T())
+    constexpr void resize(size_type count, const T &value = T())
     {
         auto diff = count - size();
-        for (auto *ptr = c; ptr < c + diff; ptr++)
-            *ptr = value;
+        for (auto i = c; i < c + diff; i++)
+            p[i] = value;
         c += diff;
     }
 
     template <typename... Args>
     constexpr reference emplace_back(Args&&... args)
     {
-        new (c) T(args...);
+        new (&p[c]) T(args...);
         c++;
-        return c[-1];
+        return p[c-1];
     }
 
-    constexpr           void push_back(const T &value)                 { *c++ = value; }
-    constexpr           void push_back(T &&value)                      { *c++ = std::move(value); }
+    constexpr           void push_back(const T &value)                 { p[c++] = value; }
+    constexpr           void push_back(T &&value)                      { p[c++] = std::move(value); }
     constexpr           void pop_back()                                { c--; }
-    constexpr           void clear() noexcept                          { c = p; }
+    constexpr           void clear() noexcept                          { c = 0; }
 };
 
