@@ -8,19 +8,19 @@
 
 namespace math {
 
-template <typename T> requires std::is_arithmetic<T>
+template <typename T> requires std::is_arithmetic_v<T>
 T ceil_div(T x, T y)
 {
     return x/y + (x%y != 0);
 }
 
-template <typename T> requires std::is_arithmetic<T>
+template <typename T> requires std::is_arithmetic_v<T>
 constexpr T map(T x, T in_min, T in_max, T out_min, T out_max)
 {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-template <typename T> requires std::is_arithmetic<T>
+template <typename T> requires std::is_arithmetic_v<T>
 T avg(T a, T b)
 {
     auto h = std::max(a, b);
@@ -28,7 +28,7 @@ T avg(T a, T b)
     return l + (h - l) / 2;
 };
 
-template <typename T> requires std::is_arithmetic<T>
+template <typename T> requires std::is_arithmetic_v<T>
 T avg(std::span<T> ns)
 {
     auto r = ns[0];
@@ -37,7 +37,7 @@ T avg(std::span<T> ns)
     return r;
 }
 
-template <typename T> requires std::is_arithmetic<T>
+template <typename T> requires std::is_arithmetic_v<T>
 T percent_of(T x, T max) { return x * 100 / max; }
 
 template <std::integral T>

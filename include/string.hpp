@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <vector>
 #include <limits>
+#include <span>
 
 namespace string {
 
@@ -167,7 +168,7 @@ inline void replace_all(std::string &s, std::string_view from, std::string_view 
 }
 
 // Finds the common prefix between a list of strings
-std::string_view common_prefix(std::span<std::string_view> strings)
+inline std::string_view common_prefix(std::span<std::string_view> strings)
 {
     std::string_view result = strings[0];
     for (auto i = 1u; i < strings.size(); i++) {
