@@ -9,30 +9,12 @@
 #include <type_traits>
 #include <vector>
 #include <limits>
-#include "concepts.hpp"
 
 namespace string {
 
 namespace detail {
 
-template <std::floating_point T>
-std::from_chars_result from_chars_double(const char *first, const char *, T &value)
-{
-    char *endptr;
-    errno = 0;
-    if constexpr(std::is_same_v<T, double>)
-        value = strtod(first, &endptr);
-    else
-        value = strtof(first, &endptr);
-    std::from_chars_result res;
-    res.ptr = endptr,
-    res.ec = endptr == first ? std::errc::invalid_argument
-           : errno != 0      ? static_cast<std::errc>(errno)
-           : std::errc();
-    return res;
-}
-
-template <Number T>
+template <typename T> requires (std::is_integral_v<T> || std::is_floating_point_v<T>)
 constexpr auto max_digits()
 {
     if constexpr(std::is_floating_point_v<T>)
@@ -127,7 +109,7 @@ inline void trim_in_place(T &s)
  * Converts a string to number using std::from_chars and returning the result
  * in an std::optional. Works for integer and floating-point numbers.
  */
-template <Number T = int, typename TStr = std::string>
+template <typename T = int, typename TStr = std::string>
 inline std::optional<T> to_number(const TStr &str, unsigned base = 10)
     requires std::is_integral_v<T> || std::is_floating_point_v<T>
 {
@@ -135,9 +117,7 @@ inline std::optional<T> to_number(const TStr &str, unsigned base = 10)
         T value = 0;
         std::from_chars_result res;
         if constexpr(std::is_floating_point_v<T>)
-            // GCC version < 11 doesn't have std::from_chars<double>, and this version
-            // is still installed in some modern distros (debian stable, WSL ubuntu)
-            res = detail::from_chars_double<T>(start, end, value);
+            res = std::from_chars(start, end, value);
         else
             res = std::from_chars(start, end, value, base);
         if (res.ec != std::errc() || res.ptr != end)
@@ -153,8 +133,9 @@ inline std::optional<T> to_number(const TStr &str, unsigned base = 10)
 }
 
 /* Converts a number to string, using std::to_chars. */
-template <typename TStr = std::string, Number T = int>
+template <typename TStr = std::string, typename T = int>
 inline TStr from_number(const T &n, int base = 10)
+    requires std::is_integral_v<T> || std::is_floating_point_v<T>
 {
     constexpr auto maxbuf = detail::max_digits<T>();
     std::array<char, maxbuf> buf;
@@ -177,12 +158,30 @@ bool iequals(const T& a, const T& b)
         });
 }
 
-/* Replace every instance of `from` to `to` in a string, done in-place */
+/* Replaces every instance of `from` to `to` in a string, done in-place */
 inline void replace_all(std::string &s, std::string_view from, std::string_view to)
 {
     for (auto i = s.find_first_of(from); i != std::string::npos; i = s.find_first_of(from)) {
         s.replace(i, from.size(), to);
     }
+}
+
+// Finds the common prefix between a list of strings
+std::string_view common_prefix(std::span<std::string_view> strings)
+{
+    std::string_view result = strings[0];
+    for (auto i = 1u; i < strings.size(); i++) {
+        auto j = 0u;
+        auto &s = strings[i];
+        while (j < std::min(result.size(), s.size()) && result[j] == s[j]) {
+            j++;
+        }
+        result = result.substr(0, j);
+        if (result.size() == 0) {
+            return result;
+        }
+    }
+    return result;
 }
 
 } // namespace string

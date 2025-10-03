@@ -1,11 +1,11 @@
 #include <type_traits>
 #include <bit>
 #include <initializer_list>
-#include "common.hpp"
+#include <cstdint>
 
 template <typename T>
 class Flags {
-    using NumType = u64;
+    using NumType = uint64_t;
     NumType data = 0;
 public:
     Flags() = default;

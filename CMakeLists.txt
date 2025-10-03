@@ -18,7 +18,7 @@ target_include_directories(io_example PRIVATE include)
 # example for conf library
 add_executable(conf_example src/conf.cpp src/io.cpp src/examples/conf_example.cpp)
 target_compile_features(conf_example PRIVATE cxx_std_23)
-target_compile_options(conf_example PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(conf_example PRIVATE -Wall -Wextra -Wpedantic -fdiagnostics-all-candidates)
 target_include_directories(conf_example PRIVATE include)
 
 # tests

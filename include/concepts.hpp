@@ -2,12 +2,13 @@
 
 #include <concepts>
 
-template <typename T>
-concept Number = std::is_integral_v<T>
-              || std::is_floating_point_v<T>;
+namespace util {
 
-template <typename T>
-concept ContainerType = requires(T t) {
+template <typename T> concept arithmetic = std::integral<T> || std::floating_point<T>;
+
+template <typename T> concept container = requires(T t) {
     t.data();
     t.size();
 };
+
+} // util
